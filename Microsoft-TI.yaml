@@ -1,0 +1,46 @@
+openapi: 3.0.0
+info:
+  title: Microsoft Threat Intelligence URL Lookup
+  description: Retrieve threat indicators for a given URL using Microsoft Graph Security API.
+  version: v1
+servers:
+  - url: https://graph.microsoft.com/v1.0
+paths:
+  /security/threatIntelligence/indicators:
+    get:
+      operationId: getThreatIntelURL
+      summary: Get threat indicators for a specific URL.
+      parameters:
+        - in: query
+          name: $filter
+          schema:
+            type: string
+          required: true
+          description: OData filter for URL (e.g., url eq 'https://example.com').
+          example: "url eq 'https://example.com'"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getThreatIntelResponse"
+components:
+  schemas:
+    getThreatIntelResponse:
+      type: object
+      properties:
+        value:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              url:
+                type: string
+              severity:
+                type: string
+              confidence:
+                type: integer
+              description:
