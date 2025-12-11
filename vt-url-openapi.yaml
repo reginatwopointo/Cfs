@@ -69,7 +69,7 @@ components:
                                                 type: string
                                             result:
                                                 type: string
-                                                                                       engine_name:
+                                            engine_name:
                                                 type: string
                                 reputation:
                                     type: integer
