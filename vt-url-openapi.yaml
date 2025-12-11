@@ -86,5 +86,5 @@ components:
                   example:
                     "Security": "Malware"
                 last_submission_date:
-                                   type: integer
+                  type: integer
                   description: Unix timestamp of last submission
