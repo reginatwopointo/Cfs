@@ -1,6 +1,5 @@
 
 openapi: 3.0.0
-
 info:
     title: Get VirusTotal URL Information
     description: Retrieve reputation and analysis details for a specific URL from VirusTotal.
@@ -9,10 +8,8 @@ info:
     # Which engines flagged https://example.com as malicious?
     # Provide a table of reputation results for https://example.com from VirusTotal.
     version: "v1"
-
 servers:
     - url: https://www.virustotal.com/api
-
 paths:
     /v3/urls/{id}:
         get:
@@ -32,7 +29,6 @@ paths:
                         application/json:
                             schema:
                                 $ref: "#/components/schemas/getVTURLResponse"
-
 components:
     schemas:
         getVTURLResponse:
