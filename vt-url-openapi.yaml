@@ -1,3 +1,4 @@
+
 openapi: 3.0.0
 
 info:
@@ -83,3 +84,5 @@ components:
                                         type: string
                                 last_submission_date:
                                     type: integer
+                                    description: Unix timestamp of last submission
+``
