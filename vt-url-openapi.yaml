@@ -1,83 +1,90 @@
 openapi: 3.0.0
 info:
-    title: Get VirusTotal URL Information
-    description: Retrieve reputation and analysis details for a specific URL from VirusTotal.
-    # Examples:
-    # Can you summarize the VirusTotal information for the URL https://example.com?
-    # Which engines flagged https://example.com as malicious?
-    # Provide a table of reputation results for https://example.com from VirusTotal.
-    version: 'v1'
+  title: Get VirusTotal URL Information
+  description: Retrieve reputation and analysis details for a specific URL from VirusTotal.
+  version: v1
 servers:
-    - url: https://www.virustotal.com/api
+  - url: https://www.virustotal.com/api
 paths:
-    /v3/urls/{id}:
-        get:
-            operationId: getVirusTotalURL
-            summary: Get VirusTotal URL Information for a specific URL.
-            parameters:
-                - in: path
-                  name: id
-                  schema:
-                      type: string
-                  required: true
-                  description: The URL identifier (URL must be URL-encoded and then base64 encoded without padding).
-            responses:
-                "200":
-                    description: OK
-                    content:
-                        application/json:
-                            schema:
-                                $ref: "#/components/schemas/getVTURLResponse"
+  /v3/urls/{id}:
+    get:
+      operationId: getVirusTotalURL
+      summary: Get VirusTotal URL Information for a specific URL.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: The URL identifier (URL must be URL-encoded and then base64 encoded without padding).
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getVTURLResponse"
 components:
-    schemas:
-        getVTURLResponse:
-            type: object
-            properties:
-                data:
+  schemas:
+    getVTURLResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            type:
+              type: string
+              example: "url"
+            id:
+              type: string
+              description: Base64-encoded URL identifier
+            attributes:
+              type: object
+              properties:
+                last_analysis_stats:
+                  type: object
+                  properties:
+                    harmless:
+                      type: integer
+                      example: 70
+                    malicious:
+                      type: integer
+                      example: 5
+                    suspicious:
+                      type: integer
+                      example: 2
+                    undetected:
+                      type: integer
+                      example: 10
+                last_analysis_results:
+                  type: object
+                  additionalProperties:
                     type: object
                     properties:
-                        type:
-                            type: string
-                            example: "url"
-                        id:
-                            type: string
-                            description: Encoded URL identifier
-                        attributes:
-                            type: object
-                            properties:
-                                last_analysis_stats:
-                                    type: object
-                                    properties:
-                                        harmless:
-                                            type: integer
-                                        malicious:
-                                            type: integer
-                                        suspicious:
-                                            type: integer
-                                        undetected:
-                                            type: integer
-                                last_analysis_results:
-                                    type: object
-                                    additionalProperties:
-                                        type: object
-                                        properties:
-                                            category:
-                                                type: string
-                                            result:
-                                                type: string
-                                            engine_name:
-                                                type: string
-                                reputation:
-                                    type: integer
-                                tags:
-                                    type: array
-                                    items:
-                                        type: string
-                                categories:
-                                    type: object
-                                    additionalProperties:
-                                        type: string
-                                last_submission_date:
-                                    type: integer
-                                    description: Unix timestamp of last submission
-``
+                      category:
+                        type: string
+                        example: "malicious"
+                      result:
+                        type: string
+                        example: "malware"
+                      engine_name:
+                        type: string
+                        example: "Kaspersky"
+                reputation:
+                  type: integer
+                  description: Reputation score (-100 to 100)
+                  example: -50
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  example: ["phishing", "malware"]
+                categories:
+                  type: object
+                  additionalProperties:
+                    type: string
+                  example:
+                    "Security": "Malware"
+                last_submission_date:
+                                   type: integer
+                  description: Unix timestamp of last submission
