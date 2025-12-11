@@ -6,7 +6,7 @@ info:
     # Can you summarize the VirusTotal information for the URL https://example.com?
     # Which engines flagged https://example.com as malicious?
     # Provide a table of reputation results for https://example.com from VirusTotal.
-    version: "v1"
+    version: 'v1'
 servers:
     - url: https://www.virustotal.com/api
 paths:
