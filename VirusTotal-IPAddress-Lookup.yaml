@@ -1,128 +1,57 @@
-openapi: 3.0.3
+openapi: 3.0.0
+
 info:
-  title: VirusTotal IP Address Lookup API
-  description: Security Copilot plugin for VirusTotal IP address reputation and analysis
-  version: 1.0.0
-  contact:
-    name: Security Copilot Plugin
-    url: https://virustotal.com
+    title: Get Virus Total IP Information
+    description: Get Information about an IP from Virus Total
+    #Examples
+    #Can you summarize the Virus Total information for the IP 185.220.101.140?
+    #Can you output a table I can export of the reputation information from all the engines from Virus Total for the IP 185.220.101.140?
+    #Which engines detected the IP 185.220.101.140 as malicious from Virus Total?
+    version: "v1"
+
 servers:
-  - url: https://www.virustotal.com/vtapi/v2
-    description: VirusTotal API v2
-  - url: https://www.virustotal.com/api/v3
-    description: VirusTotal API v3
+    - url: https://www.virustotal.com/api
+
 paths:
-  /ip-address/{ip}:
-    get:
-      summary: Get IP address report
-      description: Retrieve reputation and analysis data for an IP address from VirusTotal
-      operationId: getIpAddressReport
-      parameters:
-        - name: ip
-          in: path
-          required: true
-          description: IP address to analyze
-          schema:
-            type: string
-            format: ipv4
-            example: "8.8.8.8"
-        - name: apikey
-          in: query
-          required: true
-          description: VirusTotal API key
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  response_code:
-                    type: integer
-                    description: Response code (1 for found, 0 for not found)
-                  verbose_msg:
-                    type: string
-                    description: Verbose message
-                  positives:
-                    type: integer
-                    description: Number of engines detecting malicious activity
-                  total:
-                    type: integer
-                    description: Total number of engines
-                  scans:
-                    type: object
-                    description: Detailed scan results from different engines
-                  detected_urls:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        url:
-                          type: string
-                        positives:
-                          type: integer
-                        total:
-                          type: integer
-                        scan_date:
-                          type: string
-                  detected_downloaded_samples:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        sha256:
-                          type: string
-                        positives:
-                          type: integer
-                        total:
-                          type: integer
-                  country:
-                    type: string
-                    description: Country where the IP is located
-                  owner:
-                    type: string
-                    description: Owner of the IP address
-                  asn:
-                    type: string
-                    description: Autonomous System Number
-        '400':
-          description: Bad request - Invalid IP address format
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: "Invalid IP address format"
-        '403':
-          description: Forbidden - Invalid API key
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: "Invalid API key"
-        '429':
-          description: Rate limit exceeded
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: "Rate limit exceeded"
+    /v3/ip_addresses/{ip}:
+        get:
+            operationId: getVirusTotalIP
+            summary: Get Virus Total IP Information for a particular IP address.
+            parameters:
+                - in: path
+                  name: ip
+                  schema:
+                      type: string
+                  required: true
+                  description: The ip address to lookup              
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/getVTIPResponse"
+
 components:
-  securitySchemes:
-    ApiKeyAuth:
-      type: apiKey
-      in: query
-      name: apikey
-security:
-  - ApiKeyAuth: []
+    schemas:
+        getVTIPResponse:
+            type: object
+            properties:
+                attributes:
+                    type: object
+                    properties:
+                        jarm:
+                            type: string
+                        network:
+                            type: string
+                        last_https_certificate_date:
+                            type: integer
+                        tags:
+                            type: array
+                        crowdsourced_context:
+                            type: array
+                            items:
+                                type: object
+                                properties:
+                                    source:
+                                        type: string
