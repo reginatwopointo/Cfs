@@ -1,53 +1,128 @@
-openapi: 3.0.0
-
+openapi: 3.0.3
 info:
-  title: Get Virus Total IP Information
-  description: Get Information about an IP from Virus Total
-  version: "v1"
-
+  title: VirusTotal IP Address Lookup API
+  description: Security Copilot plugin for VirusTotal IP address reputation and analysis
+  version: 1.0.0
+  contact:
+    name: Security Copilot Plugin
+    url: https://virustotal.com
 servers:
-  - url: https://www.virustotal.com/api
-
+  - url: https://www.virustotal.com/vtapi/v2
+    description: VirusTotal API v2
+  - url: https://www.virustotal.com/api/v3
+    description: VirusTotal API v3
 paths:
-  /v3/ip_addresses/{ip}:
+  /ip-address/{ip}:
     get:
-      operationId: getVirusTotalIP
-      summary: Get Virus Total IP Information for a particular IP address
+      summary: Get IP address report
+      description: Retrieve reputation and analysis data for an IP address from VirusTotal
+      operationId: getIpAddressReport
       parameters:
-        - in: path
-          name: ip
+        - name: ip
+          in: path
+          required: true
+          description: IP address to analyze
           schema:
             type: string
+            format: ipv4
+            example: "8.8.8.8"
+        - name: apikey
+          in: query
           required: true
-          description: The IP address to lookup
-      security:
-        - ApiKeyAuth: []
+          description: VirusTotal API key
+          schema:
+            type: string
       responses:
-        "200":
-          description: OK
+        '200':
+          description: Successful response
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/getVTIPResponse"
-        "401":
-          description: Unauthorized - Invalid API key
-
+                type: object
+                properties:
+                  response_code:
+                    type: integer
+                    description: Response code (1 for found, 0 for not found)
+                  verbose_msg:
+                    type: string
+                    description: Verbose message
+                  positives:
+                    type: integer
+                    description: Number of engines detecting malicious activity
+                  total:
+                    type: integer
+                    description: Total number of engines
+                  scans:
+                    type: object
+                    description: Detailed scan results from different engines
+                  detected_urls:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        url:
+                          type: string
+                        positives:
+                          type: integer
+                        total:
+                          type: integer
+                        scan_date:
+                          type: string
+                  detected_downloaded_samples:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        sha256:
+                          type: string
+                        positives:
+                          type: integer
+                        total:
+                          type: integer
+                  country:
+                    type: string
+                    description: Country where the IP is located
+                  owner:
+                    type: string
+                    description: Owner of the IP address
+                  asn:
+                    type: string
+                    description: Autonomous System Number
+        '400':
+          description: Bad request - Invalid IP address format
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid IP address format"
+        '403':
+          description: Forbidden - Invalid API key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid API key"
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Rate limit exceeded"
 components:
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
-      in: header
-      name: x-apikey
-  schemas:
-    getVTIPResponse:
-      type: object
-      properties:
-        data:
-          type: object
-          properties:
-            type:
-              type: string
-            id:
-              type: string
-            attributes:
-              type: object
+      in: query
+      name: apikey
+security:
+  - ApiKeyAuth: []
