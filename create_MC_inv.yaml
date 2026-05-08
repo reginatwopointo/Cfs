@@ -42,18 +42,18 @@ components:
         description:
           type: string
           description: >
-            Free-text summary of the security event, including source IP, affected user, host, and triggering correlation rule name (optional)
+            Free-text summary of the security event, including source IP, affected user, host, and triggering correlation rule name
           example: "15 failed logins from 192.168.1.100 against jdoe@contoso.com"
         investigation_type:
           type: string
           description: >
             Classification of the investigation aligned to your SOC taxonomy.
-            Examples: Credential Attack, Malware, Lateral Movement, Phishing, Ransomware, Insider Threat (optional)
+            Examples: Credential Attack, Malware, Lateral Movement, Phishing, Ransomware, Insider Threat
           example: "Credential Attack"
         urgency:
           type: string
           description: >
-            Urgency level mapped directly from the Splunk ES notable event urgency field. Use the Splunk value as-is (optional)
+            Urgency level mapped directly from the Splunk ES notable event urgency field. Use the Splunk value as-is
           enum: 
             - informational
             - low
@@ -70,7 +70,7 @@ components:
         sensitivity:
           type: string
           description: >
-            Data sensitivity classification controlling visibility in Mission Control (optional)
+            Data sensitivity classification controlling visibility in Mission Control
           enum:
             - Unassigned
             - White
@@ -80,23 +80,35 @@ components:
           default: "Unassigned"
           example: "Unassigned"
         finding_ids:
-          type: string
+          type: array
           description: >
-            One or more Splunk ES notable event IDs in the format {GUID}@@notable@@{timestamp}. Each ID links the investigation to its source Splunk finding.
-            Example: ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665 (required)
-          example: "ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665"
+            MUST be a JSON array containing one or more Splunk ES notable
+            event IDs in the format {GUID}@@notable@@{timestamp}.
+            Always construct and send as a JSON array even for a single ID.
+ 
+            CORRECT:   ["b82f951f-150d-4c75-849d-7c5669755406@@notable@@time1776880498"]
+            INCORRECT: "b82f951f-150d-4c75-849d-7c5669755406@@notable@@time1776880498"
+ 
+            The Splunk MC handler silently drops a plain string value and
+            returns "finding does not exist" even if the finding is valid.
+            Always use array syntax with square brackets.
+          items:
+            type: string
+          minItems: 1
+          example:
+            - "b82f951f-150d-4c75-849d-7c5669755406@@notable@@time1776880498"
         earliest:
           type: string
           description: >
-            Start of the time window Splunk uses to locate the finding in index=notable. Default is -90d to cover findings up to 90 days old.
-            Override with a wider window if the alert creation date is older than 90 days, for example, 180d or -1y.
-            Accepted formats: -30d, -60d, -90d, -180d, -1y, or an epoch timestamp integer (optional)
-          default: "-90d"
-          example: "-90d"
+            Start of the time window Splunk uses to locate the finding in index=notable. Default is -30d to cover findings up to 90 days old.
+            Override with a wider window if the alert creation date is older than 30 days, for example, -180d or -90d.
+            Accepted formats: -30d, -60d, -90d, -180d, -1y, or an epoch timestamp integer
+          default: "-30d"
+          example: "-30d"
         latest:
           type: string
           description: >
-            End of the time window Splunk uses to locate the finding in index=notable. Defaults to now, meaning the current time at the point of the API call (optional)
+            End of the time window Splunk uses to locate the finding in index=notable. Defaults to now, meaning the current time at the point of the API call
           default: "now"
           example: "now"
 
@@ -125,9 +137,12 @@ components:
           type: string
           example: "Active"
         finding_ids:
-          type: string
+          type: array
           description: Echo of the finding_ids confirming the link to source findings.
-          example: "ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665"
+          items:
+            type: string
+          example:
+            - "b82f951f-150d-4c75-849d-7c5669755406@@notable@@time1776880498"
         created_at:
           type: string
           format: date-time
@@ -152,23 +167,32 @@ paths:
   /servicesNS/nobody/missioncontrol/public/v2/investigations:
     post:
       operationId: CreateMCInvestigation
-      summary: Create a Mission Control investigation from Splunk finding IDs
+      summary: Create a Mission Control investigation from a Splunk finding ID
       description: |
-        Creates a new Mission Control investigation in Splunk Enterprise Security linked to one or more source notable events via their finding_ids in the format {GUID}@@notable@@{timestamp}.
-
-        The finding_ids field is required and provides bi-directional traceability between the MC investigation and the originating Splunk ES findings. 
-        Always provide at least one finding_id.
-
-        Urgency must be one of: informational, low, medium, high, critical.
-        Map directly from the Splunk ES notable event urgency field.
-
-        #ExamplePrompts Create a Mission Control investigation for finding ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665
+        Creates a new Mission Control investigation in Splunk Enterprise
+        Security linked to a source notable event via its finding_ids
+        in the format {GUID}@@notable@@{timestamp}.
+ 
+        CRITICAL: finding_ids must always be sent as a JSON array.
+        Always wrap the finding ID in square brackets.
+        Correct:   ["b82f951f-150d-4c75-849d-7c5669755406@@notable@@time1776880498"]
+        Incorrect: "b82f951f-150d-4c75-849d-7c5669755406@@notable@@time1776880498"
+ 
+        Sending finding_ids as a plain string causes the Splunk MC handler
+        to silently drop the value. The handler will log "Child findings ids
+        were provided" but will not execute the notable lookup, returning
+        "finding does not exist" regardless of whether the finding is valid.
+ 
+        Urgency accepts both lowercase and capitalised values:
+        informational/Informational, low/Low, medium/Medium,
+        high/High, critical/Critical.
+ 
+        #ExamplePrompts Create a Mission Control investigation for finding b82f951f-150d-4c75-849d-7c5669755406@@notable@@time1776880498
         #ExamplePrompts Start a new Mission Control investigation for this Splunk notable event
-        #ExamplePrompts Open an MC investigation for the high urgency brute force finding
+        #ExamplePrompts Open an MC investigation for the low urgency malicious URL finding
         #ExamplePrompts Escalate this Splunk finding to a Mission Control investigation
-        #ExamplePrompts Create an investigation in Splunk Mission Control with urgency high
+        #ExamplePrompts Create an investigation in Splunk Mission Control with urgency low
       tags:
-        - Mission Control Investigations
         - Mission Control Investigations
       requestBody:
         required: true
@@ -185,7 +209,8 @@ paths:
                   investigation_type: "Phishing"
                   urgency: "low"
                   sensitivity: "Unassigned"
-                  finding_ids: "b82f951f-150d-4c75-849d-7c5669755406@@notable@@time1776880498"
+                  finding_ids:
+                    - "b82f951f-150d-4c75-849d-7c5669755406@@notable@@time1776880498"
               brute_force:
                 summary: Brute force credential attack
                 value:
@@ -194,7 +219,19 @@ paths:
                   investigation_type: "Credential Attack"
                   urgency: "high"
                   sensitivity: "Amber"
-                  finding_ids: "ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665"
+                  finding_ids:
+                    - "ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665"
+              multiple_findings:
+                summary: Multiple related findings grouped into one investigation
+                value:
+                  name: "Lateral Movement - Finance Network"
+                  description: "Multiple related findings indicating lateral movement."
+                  investigation_type: "Lateral Movement"
+                  urgency: "critical"
+                  sensitivity: "Red"
+                  finding_ids:
+                    - "b82f951f-150d-4c75-849d-7c5669755406@@notable@@time1776880498"
+                    - "ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665"
       responses:
         '200':
           description: Investigation successfully created.
@@ -204,8 +241,9 @@ paths:
                 $ref: '#/components/schemas/CreateInvestigationResponse'
         '400':
           description: >
-            Bad request. Common causes: finding_ids missing or malformed,
-            name is blank, urgency not in allowed enum.
+            Bad request. Common causes: finding_ids missing, malformed,
+            or sent as a string instead of an array. name is blank.
+            urgency not in allowed enum.
           content:
             application/json:
               schema:
@@ -234,8 +272,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: >
-            Conflict. An investigation already exists for
-            this finding_id.
+            Conflict. An investigation already exists for this finding_id.
           content:
             application/json:
               schema:
@@ -258,5 +295,5 @@ tags:
     description: >
       Creates investigations in Splunk Enterprise Security Mission Control
       via the confirmed v2 endpoint at port 8089. Requires APIKey auth
-      with Bearer scheme. finding_ids must be a single string value in
-      {GUID}@@notable@@{timestamp} format.
+      with Bearer scheme. finding_ids must always be a JSON array in
+      [{GUID}@@notable@@{timestamp}] format. Never send as a plain string.
