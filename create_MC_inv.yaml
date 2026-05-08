@@ -37,23 +37,23 @@ components:
       properties:
         name:
           type: string
-          description: Display name for the investigation in the MC analyst queue (required).
+          description: Display name for the investigation in the MC analyst queue (required)
           example: "Malicious URL Click Permitted"
         description:
           type: string
           description: >
-            Free-text summary of the security event, including source IP, affected user, host, and triggering correlation rule name.
+            Free-text summary of the security event, including source IP, affected user, host, and triggering correlation rule name (optional)
           example: "15 failed logins from 192.168.1.100 against jdoe@contoso.com"
         investigation_type:
           type: string
           description: >
             Classification of the investigation aligned to your SOC taxonomy.
-            Examples: Credential Attack, Malware, Lateral Movement, Phishing, Ransomware, Insider Threat.
+            Examples: Credential Attack, Malware, Lateral Movement, Phishing, Ransomware, Insider Threat (optional)
           example: "Credential Attack"
         urgency:
           type: string
           description: >
-            Urgency level mapped directly from the Splunk ES notable event urgency field. Use the Splunk value as-is.
+            Urgency level mapped directly from the Splunk ES notable event urgency field. Use the Splunk value as-is (optional)
           enum: 
             - informational
             - low
@@ -70,7 +70,7 @@ components:
         sensitivity:
           type: string
           description: >
-            Data sensitivity classification controlling visibility in Mission Control.
+            Data sensitivity classification controlling visibility in Mission Control (optional)
           enum:
             - Unassigned
             - White
@@ -85,32 +85,18 @@ components:
             One or more Splunk ES notable event IDs in the format {GUID}@@notable@@{timestamp}. Each ID links the investigation to its source Splunk finding.
             Example: ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665 (required)
           example: "ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665"
-
         earliest:
           type: string
           description: >
-            Start of the time window Splunk uses to locate the finding
-            in index=notable. Uses Splunk relative time syntax.
-            Default is -90d to cover findings up to 90 days old.
-            Override with a wider window if the alert creation date
-            is older than 90 days, for example, 180d or -1y.
-            Accepted formats: -30d, -60d, -90d, -180d, -1y,
-            or an epoch timestamp integer.
-            If the user does not provide this value, always use
-            the default of -90d. Do not ask the user for this
-            value unless they explicitly want to override it.
+            Start of the time window Splunk uses to locate the finding in index=notable. Default is -90d to cover findings up to 90 days old.
+            Override with a wider window if the alert creation date is older than 90 days, for example, 180d or -1y.
+            Accepted formats: -30d, -60d, -90d, -180d, -1y, or an epoch timestamp integer (optional)
           default: "-90d"
           example: "-90d"
- 
         latest:
           type: string
           description: >
-            End of the time window Splunk uses to locate the finding
-            in index=notable. Defaults to now, meaning the current
-            time at the point of the API call. Only override this
-            if the user needs to scope the lookup to a specific
-            past window. If not provided by the user, always
-            use the default value of now.
+            End of the time window Splunk uses to locate the finding in index=notable. Defaults to now, meaning the current time at the point of the API call (optional)
           default: "now"
           example: "now"
 
