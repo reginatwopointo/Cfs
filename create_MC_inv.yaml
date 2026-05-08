@@ -12,15 +12,17 @@ servers:
     description: Splunk Cloud management API (port 8089)
 
 security:
-  - BearerAuth: []
+  - ApiKeyAuth: []
 
 components:
 
   securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+    # Aligned to the manifest Authorization Type: APIKey
+    # Token is injected as: Authorization: Bearer <token>
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
       description: >
         Splunk Cloud JWT Bearer token. Passed as:
         Authorization: Bearer <jwt>
@@ -35,12 +37,12 @@ components:
       properties:
         name:
           type: string
-          description: Display name for the investigation in the MC analyst queue.
-          example: "Brute Force Detected - jdoe@contoso.com"
+          description: Display name for the investigation in the MC analyst queue (required).
+          example: "Malicious URL Click Permitted"
         description:
           type: string
           description: >
-            Free-text summary of the security event including source IP, affected user, host, and triggering correlation rule name.
+            Free-text summary of the security event, including source IP, affected user, host, and triggering correlation rule name.
           example: "15 failed logins from 192.168.1.100 against jdoe@contoso.com"
         investigation_type:
           type: string
@@ -52,14 +54,19 @@ components:
           type: string
           description: >
             Urgency level mapped directly from the Splunk ES notable event urgency field. Use the Splunk value as-is.
-          enum:
+          enum: 
             - informational
             - low
             - medium
             - high
             - critical
+            - Informational
+            - Low
+            - Medium
+            - High
+            - Critical
           default: "low"
-          example: "high"
+          example: "low"
         sensitivity:
           type: string
           description: >
@@ -71,17 +78,13 @@ components:
             - Amber
             - Red
           default: "Unassigned"
-          example: "Amber"
+          example: "Unassigned"
         finding_ids:
-          type: array
+          type: string
           description: >
             One or more Splunk ES notable event IDs in the format {GUID}@@notable@@{timestamp}. Each ID links the investigation to its source Splunk finding.
-            Example: ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665
-          items:
-            type: string
-          minItems: 1
-          example:
-            - "ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665"
+            Example: ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665 (required)
+          example: "ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665"
 
     CreateInvestigationResponse:
       type: object
@@ -108,12 +111,9 @@ components:
           type: string
           example: "Active"
         finding_ids:
-          type: array
+          type: string
           description: Echo of the finding_ids confirming the link to source findings.
-          items:
-            type: string
-          example:
-            - "ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665"
+          example: "ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665"
         created_at:
           type: string
           format: date-time
@@ -155,6 +155,7 @@ paths:
         #ExamplePrompts Create an investigation in Splunk Mission Control with urgency high
       tags:
         - Mission Control Investigations
+        - Mission Control Investigations
       requestBody:
         required: true
         content:
@@ -162,37 +163,24 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateInvestigationRequest'
             examples:
+              malicious_url:
+                summary: Malicious URL click permitted
+                value:
+                  name: "Malicious URL Click Permitted"
+                  description: "User clicked a malicious URL permitted through email gateway."
+                  investigation_type: "Phishing"
+                  urgency: "low"
+                  sensitivity: "Unassigned"
+                  finding_ids: "b82f951f-150d-4c75-849d-7c5669755406@@notable@@time1776880498"
               brute_force:
                 summary: Brute force credential attack
                 value:
                   name: "Brute Force Detected - jdoe@contoso.com"
-                  description: "15 failed logins from 192.168.1.100 against jdoe@contoso.com within 3 minutes"
+                  description: "15 failed logins from 192.168.1.100 against jdoe@contoso.com within 3 minutes."
                   investigation_type: "Credential Attack"
                   urgency: "high"
                   sensitivity: "Amber"
-                  finding_ids:
-                    - "ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665"
-              minimal:
-                summary: Minimal required fields only
-                value:
-                  name: "auto-created new investigation"
-                  description: "test by marcus"
-                  investigation_type: "heather vt test"
-                  urgency: "informational"
-                  sensitivity: "Unassigned"
-                  finding_ids:
-                    - "ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665"
-              multiple_findings:
-                summary: Multiple related findings
-                value:
-                  name: "Lateral Movement - Finance Network"
-                  description: "Multiple related findings indicating lateral movement"
-                  investigation_type: "Lateral Movement"
-                  urgency: "critical"
-                  sensitivity: "Red"
-                  finding_ids:
-                    - "ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665"
-                    - "bc458884-7c94-49e5-a068-0fbcb70a13f6@@notable@@time1778111397"
+                  finding_ids: "ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665"
       responses:
         '200':
           description: Investigation successfully created.
@@ -202,7 +190,8 @@ paths:
                 $ref: '#/components/schemas/CreateInvestigationResponse'
         '400':
           description: >
-            Bad request. Common causes: finding_ids empty or missing, name is blank, urgency not in allowed enum.
+            Bad request. Common causes: finding_ids missing or malformed,
+            name is blank, urgency not in allowed enum.
           content:
             application/json:
               schema:
@@ -223,14 +212,16 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: >
-            Not found. One or more finding_ids do not exist in Splunk ES or are not accessible by the authenticated user.
+            Not found. The finding_id does not exist in Splunk ES
+            or is not accessible by the authenticated user.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: >
-            Conflict. An investigation already exists for one or more of the provided finding_ids.
+            Conflict. An investigation already exists for
+            this finding_id.
           content:
             application/json:
               schema:
@@ -247,8 +238,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
+ 
 tags:
   - name: Mission Control Investigations
     description: >
-      Creates investigations in Splunk Enterprise Security Mission Control via the confirmed v2 endpoint. Requires Bearer JWT authentication and at least one finding_id in {GUID}@@notable@@{timestamp} format.
+      Creates investigations in Splunk Enterprise Security Mission Control
+      via the confirmed v2 endpoint at port 8089. Requires APIKey auth
+      with Bearer scheme. finding_ids must be a single string value in
+      {GUID}@@notable@@{timestamp} format.
