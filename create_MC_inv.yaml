@@ -86,6 +86,34 @@ components:
             Example: ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665 (required)
           example: "ec59e1ed-0ed3-419c-b799-ba4a55bcff25@@notable@@time1775681665"
 
+        earliest:
+          type: string
+          description: >
+            Start of the time window Splunk uses to locate the finding
+            in index=notable. Uses Splunk relative time syntax.
+            Default is -90d to cover findings up to 90 days old.
+            Override with a wider window if the alert creation date
+            is older than 90 days, for example, 180d or -1y.
+            Accepted formats: -30d, -60d, -90d, -180d, -1y,
+            or an epoch timestamp integer.
+            If the user does not provide this value, always use
+            the default of -90d. Do not ask the user for this
+            value unless they explicitly want to override it.
+          default: "-90d"
+          example: "-90d"
+ 
+        latest:
+          type: string
+          description: >
+            End of the time window Splunk uses to locate the finding
+            in index=notable. Defaults to now, meaning the current
+            time at the point of the API call. Only override this
+            if the user needs to scope the lookup to a specific
+            past window. If not provided by the user, always
+            use the default value of now.
+          default: "now"
+          example: "now"
+
     CreateInvestigationResponse:
       type: object
       properties:
