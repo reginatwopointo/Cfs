@@ -19,23 +19,43 @@ paths:
       operationId: lookupObservable
       summary: Look up a STIX cyber observable in OpenCTI and return its full threat-intel context.
       description: |
-        Searches OpenCTI for a STIX cyber observable matching the supplied value and
-        returns the observable along with: labels, markings, creator identity, linked
-        indicators (with patterns, confidence, validity, external references),
-        reports referencing the observable, and STIX core relationships out to and
-        from related malware, threat actors, intrusion sets, campaigns, MITRE ATT&CK
-        attack patterns, tools, vulnerabilities, infrastructure and organizations.
+        Looks up a STIX cyber observable in OpenCTI by value and returns its full
+        threat-intel context: labels, markings, creator identity, linked indicators
+        (with patterns, confidence, validity, external references), reports
+        referencing the observable, and STIX core relationships out to and from
+        related malware, threat actors, intrusion sets, campaigns, MITRE ATT&CK
+        attack patterns, tools, vulnerabilities, infrastructure, and organizations.
 
-        Accepts any observable value: file hashes (MD5, SHA1, SHA256), IPv4/IPv6
-        addresses, domain names, URLs, email addresses, mutex names, etc.
+        INVOKE THIS SKILL WHENEVER the input is a STIX cyber observable value -
+        including when the input is a bare value with no descriptive text. The
+        following input shapes should always route to this skill:
+          - A 32-character hex string (MD5 file hash)
+          - A 40-character hex string (SHA1 file hash)
+          - A 64-character hex string (SHA256 file hash)
+          - An IPv4 address (dotted quad) or IPv6 address
+          - A domain name (e.g. example.com, sub.example.co.uk)
+          - A URL (http://, https://, or defanged hxxp[s]://)
+          - An email address
+          - Any other STIX cyber observable value (mutex, Windows registry key,
+            user-agent, file path, MAC address, etc.)
 
+        Pass the input verbatim as the `search` variable - do not paraphrase,
+        wrap in quotes, prepend labels like "hash:", or otherwise modify it.
+
+        #ExamplePrompts 7c1f99dca8e5a7897892f9d224a6495023a2cfd2671697d229d355978c415ed2
+        #ExamplePrompts 44d88612fea8a8f36de82e1278abb02f
+        #ExamplePrompts 3395856ce81f2b7382dee72602f798b642f14140
+        #ExamplePrompts 1.2.3.4
+        #ExamplePrompts 2606:4700:4700::1111
+        #ExamplePrompts evil.example.com
+        #ExamplePrompts https://malicious.example/path
+        #ExamplePrompts phish@example.com
         #ExamplePrompts Look up the file hash 7c1f99dca8e5a7897892f9d224a6495023a2cfd2671697d229d355978c415ed2 in OpenCTI
         #ExamplePrompts What does OpenCTI know about the SHA256 <hash>?
         #ExamplePrompts Enrich the IP 1.2.3.4 using OpenCTI
         #ExamplePrompts Search OpenCTI for the domain example.com and show linked threat actors
         #ExamplePrompts Pull OpenCTI context for the URL https://malicious.example/path
         #ExamplePrompts Get threat intel from OpenCTI for the email phish@example.com
-        #ExamplePrompts Show OpenCTI indicators and reports for observable <value>
       requestBody:
         required: true
         content:
@@ -199,9 +219,22 @@ components:
             search:
               type: string
               description: |
-                The observable value to look up. Pass exactly one of: a file hash
-                (MD5/SHA1/SHA256), an IPv4 or IPv6 address, a domain name, a URL,
-                an email address, or another STIX cyber observable value.
+                The observable value to look up, passed VERBATIM with no
+                modification. Acceptable values: a file hash (32-char MD5,
+                40-char SHA1, or 64-char SHA256 hex), an IPv4 or IPv6 address,
+                a domain name, a URL, an email address, or another STIX cyber
+                observable.
+
+                Rules for the caller (planning LLM or agent):
+                  - Do NOT wrap the value in quotes.
+                  - Do NOT prepend labels like "hash:", "sha256:", "ip:", etc.
+                  - Do NOT change case (hex hashes are case-insensitive in
+                    OpenCTI, but pass through as received).
+                  - Do NOT strip URL schemes or trailing slashes.
+                  - If the input is defanged (e.g. "1[.]2[.]3[.]4" or
+                    "hxxps://evil[.]com"), re-fang it before passing.
+                  - If the input contains multiple values, call this skill
+                    once per value rather than concatenating.
               example: "7c1f99dca8e5a7897892f9d224a6495023a2cfd2671697d229d355978c415ed2"
 
     LookupObservableResponse:
