@@ -1,0 +1,333 @@
+openapi: 3.0.3
+info:
+  title: OpenCTI Filigran Threat Intelligence
+  description: |
+    Read-only access to an OpenCTI / Filigran instance through its GraphQL endpoint.
+    Each skill wraps a single, fixed GraphQL query; Security Copilot only supplies
+    the user-controlled GraphQL variables (e.g. the observable value to search for).
+  version: "1.0.0"
+
+servers:
+  # This is overridden at runtime by the `InstanceURL` setting in the plugin manifest
+  # (EndpointUrlSettingName: InstanceURL). Kept here so the spec is valid standalone.
+  - url: https://accentureci.octi.filigran.io
+    description: OpenCTI Filigran instance (overridden by InstanceURL setting)
+
+paths:
+  /graphql:
+    post:
+      operationId: lookupObservable
+      summary: Look up a STIX cyber observable in OpenCTI and return its full threat-intel context.
+      description: |
+        Searches OpenCTI for a STIX cyber observable matching the supplied value and
+        returns the observable along with: labels, markings, creator identity, linked
+        indicators (with patterns, confidence, validity, external references),
+        reports referencing the observable, and STIX core relationships out to and
+        from related malware, threat actors, intrusion sets, campaigns, MITRE ATT&CK
+        attack patterns, tools, vulnerabilities, infrastructure and organizations.
+
+        Accepts any observable value: file hashes (MD5, SHA1, SHA256), IPv4/IPv6
+        addresses, domain names, URLs, email addresses, mutex names, etc.
+
+        #ExamplePrompts Look up the file hash 7c1f99dca8e5a7897892f9d224a6495023a2cfd2671697d229d355978c415ed2 in OpenCTI
+        #ExamplePrompts What does OpenCTI know about the SHA256 <hash>?
+        #ExamplePrompts Enrich the IP 1.2.3.4 using OpenCTI
+        #ExamplePrompts Search OpenCTI for the domain example.com and show linked threat actors
+        #ExamplePrompts Pull OpenCTI context for the URL https://malicious.example/path
+        #ExamplePrompts Get threat intel from OpenCTI for the email phish@example.com
+        #ExamplePrompts Show OpenCTI indicators and reports for observable <value>
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LookupObservableRequest'
+      responses:
+        '200':
+          description: GraphQL response. Per the GraphQL spec, business-level errors are returned with HTTP 200 in the `errors` field.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LookupObservableResponse'
+        '401':
+          description: Authentication failed. Check the API token configured for the plugin.
+        '403':
+          description: The configured token does not have permission to query this observable.
+
+components:
+  schemas:
+
+    LookupObservableRequest:
+      type: object
+      required:
+        - query
+        - variables
+      properties:
+        query:
+          type: string
+          description: |
+            The GraphQL query string. Use the default value exactly as provided -
+            do not modify it. The only user-supplied input is the `search` field
+            inside `variables`.
+          default: |
+            query LookupObservable($search: String!) {
+              stixCyberObservables(search: $search) {
+                edges {
+                  node {
+                    id
+                    standard_id
+                    entity_type
+                    observable_value
+                    x_opencti_score
+                    x_opencti_description
+                    created_at
+                    updated_at
+                    createdBy {
+                      ... on Identity {
+                        name
+                        entity_type
+                        contact_information
+                      }
+                    }
+                    objectLabel { value color }
+                    objectMarking { definition definition_type }
+                    indicators {
+                      edges {
+                        node {
+                          name
+                          description
+                          pattern
+                          pattern_type
+                          confidence
+                          x_opencti_score
+                          valid_from
+                          valid_until
+                          created
+                          modified
+                          indicator_types
+                          revoked
+                          externalReferences {
+                            edges {
+                              node {
+                                url
+                                source_name
+                                description
+                                external_id
+                              }
+                            }
+                          }
+                          objectLabel { value }
+                          objectMarking { definition }
+                        }
+                      }
+                    }
+                    reports {
+                      edges {
+                        node {
+                          id
+                          name
+                          description
+                          published
+                          confidence
+                          report_types
+                          createdBy { ... on Identity { name } }
+                          objectLabel { value }
+                          externalReferences {
+                            edges {
+                              node { url source_name description }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    stixCoreRelationships {
+                      edges {
+                        node {
+                          id
+                          relationship_type
+                          description
+                          created_at
+                          updated_at
+                          confidence
+                          start_time
+                          stop_time
+                          createdBy { ... on Identity { name } }
+                          objectLabel { value }
+                          to {
+                            ... on StixCoreObject {
+                              id
+                              entity_type
+                              ... on Malware { name description malware_types }
+                              ... on ThreatActor { name description threat_actor_types }
+                              ... on IntrusionSet { name description }
+                              ... on Campaign { name description }
+                              ... on AttackPattern { name description x_mitre_id }
+                              ... on Tool { name description tool_types }
+                              ... on Vulnerability { name description }
+                              ... on Infrastructure { name description }
+                              ... on Organization { name description }
+                            }
+                          }
+                          from {
+                            ... on StixCoreObject {
+                              id
+                              entity_type
+                              ... on Malware { name description malware_types }
+                              ... on ThreatActor { name description threat_actor_types }
+                              ... on IntrusionSet { name description }
+                              ... on Campaign { name description }
+                              ... on AttackPattern { name description x_mitre_id }
+                              ... on Tool { name description tool_types }
+                              ... on Vulnerability { name description }
+                              ... on Infrastructure { name description }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+        variables:
+          type: object
+          required:
+            - search
+          properties:
+            search:
+              type: string
+              description: |
+                The observable value to look up. Pass exactly one of: a file hash
+                (MD5/SHA1/SHA256), an IPv4 or IPv6 address, a domain name, a URL,
+                an email address, or another STIX cyber observable value.
+              example: "7c1f99dca8e5a7897892f9d224a6495023a2cfd2671697d229d355978c415ed2"
+
+    LookupObservableResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            stixCyberObservables:
+              type: object
+              properties:
+                edges:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      node:
+                        $ref: '#/components/schemas/StixCyberObservableNode'
+        errors:
+          type: array
+          description: GraphQL-level errors, if any.
+          items:
+            type: object
+            properties:
+              message: { type: string }
+              path:
+                type: array
+                items: { type: string }
+
+    StixCyberObservableNode:
+      type: object
+      properties:
+        id: { type: string }
+        standard_id: { type: string }
+        entity_type:
+          type: string
+          description: STIX type, e.g. StixFile, IPv4-Addr, Domain-Name, Url, Email-Addr.
+        observable_value: { type: string }
+        x_opencti_score:
+          type: integer
+          description: OpenCTI confidence score (0-100).
+        x_opencti_description: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        createdBy:
+          type: object
+          properties:
+            name: { type: string }
+            entity_type: { type: string }
+            contact_information: { type: string }
+        objectLabel:
+          type: array
+          items:
+            type: object
+            properties:
+              value: { type: string }
+              color: { type: string }
+        objectMarking:
+          type: array
+          items:
+            type: object
+            properties:
+              definition: { type: string }
+              definition_type: { type: string }
+        indicators:
+          type: object
+          properties:
+            edges:
+              type: array
+              items:
+                type: object
+                properties:
+                  node:
+                    type: object
+                    properties:
+                      name: { type: string }
+                      description: { type: string }
+                      pattern: { type: string }
+                      pattern_type: { type: string }
+                      confidence: { type: integer }
+                      x_opencti_score: { type: integer }
+                      valid_from: { type: string, format: date-time }
+                      valid_until: { type: string, format: date-time }
+                      created: { type: string, format: date-time }
+                      modified: { type: string, format: date-time }
+                      indicator_types:
+                        type: array
+                        items: { type: string }
+                      revoked: { type: boolean }
+        reports:
+          type: object
+          properties:
+            edges:
+              type: array
+              items:
+                type: object
+                properties:
+                  node:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      name: { type: string }
+                      description: { type: string }
+                      published: { type: string, format: date-time }
+                      confidence: { type: integer }
+                      report_types:
+                        type: array
+                        items: { type: string }
+        stixCoreRelationships:
+          type: object
+          properties:
+            edges:
+              type: array
+              items:
+                type: object
+                properties:
+                  node:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      relationship_type: { type: string }
+                      description: { type: string }
+                      confidence: { type: integer }
+                      start_time: { type: string, format: date-time }
+                      stop_time: { type: string, format: date-time }
+                      from:
+                        type: object
+                        description: Source STIX core object of the relationship.
+                      to:
+                        type: object
+                        description: Target STIX core object of the relationship.
