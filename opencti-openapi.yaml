@@ -97,111 +97,53 @@ components:
                   edges {
                     node {
                       id
-                      standard_id
                       entity_type
                       observable_value
                       x_opencti_score
                       x_opencti_description
-                      created_at
-                      updated_at
-                      createdBy {
-                        ... on Identity {
-                          name
-                          entity_type
-                          contact_information
-                        }
-                      }
-                      objectLabel { value color }
-                      objectMarking { definition definition_type }
+                      objectLabel { value }
                       indicators {
                         edges {
                           node {
                             name
-                            description
                             pattern
                             pattern_type
                             confidence
                             x_opencti_score
                             valid_from
                             valid_until
-                            created
-                            modified
                             indicator_types
                             revoked
-                            externalReferences {
-                              edges {
-                                node {
-                                  url
-                                  source_name
-                                  description
-                                  external_id
-                                }
-                              }
-                            }
-                            objectLabel { value }
-                            objectMarking { definition }
                           }
                         }
                       }
                       reports {
                         edges {
                           node {
-                            id
                             name
                             description
                             published
-                            confidence
                             report_types
-                            createdBy { ... on Identity { name } }
-                            objectLabel { value }
-                            externalReferences {
-                              edges {
-                                node { url source_name description }
-                              }
-                            }
                           }
                         }
                       }
                       stixCoreRelationships {
                         edges {
                           node {
-                            id
                             relationship_type
-                            description
-                            created_at
-                            updated_at
                             confidence
                             start_time
                             stop_time
-                            createdBy { ... on Identity { name } }
-                            objectLabel { value }
                             to {
                               ... on StixCoreObject {
-                                id
                                 entity_type
-                                ... on Malware { name description malware_types }
-                                ... on ThreatActor { name description threat_actor_types }
-                                ... on IntrusionSet { name description }
-                                ... on Campaign { name description }
-                                ... on AttackPattern { name description x_mitre_id }
-                                ... on Tool { name description tool_types }
-                                ... on Vulnerability { name description }
-                                ... on Infrastructure { name description }
-                                ... on Organization { name description }
-                              }
-                            }
-                            from {
-                              ... on StixCoreObject {
-                                id
-                                entity_type
-                                ... on Malware { name description malware_types }
-                                ... on ThreatActor { name description threat_actor_types }
-                                ... on IntrusionSet { name description }
-                                ... on Campaign { name description }
-                                ... on AttackPattern { name description x_mitre_id }
-                                ... on Tool { name description tool_types }
-                                ... on Vulnerability { name description }
-                                ... on Infrastructure { name description }
+                                ... on Malware { name }
+                                ... on ThreatActor { name }
+                                ... on IntrusionSet { name }
+                                ... on Campaign { name }
+                                ... on AttackPattern { name x_mitre_id }
+                                ... on Tool { name }
+                                ... on Vulnerability { name }
                               }
                             }
                           }
