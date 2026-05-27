@@ -66,120 +66,123 @@ components:
         query:
           type: string
           description: |
-            The GraphQL query string. Use the default value exactly as provided -
-            do not modify it. The only user-supplied input is the `search` field
+            The GraphQL query string. This field has exactly one valid value -
+            send it verbatim from the enum. Do not paraphrase, shorten, or
+            modify it. The only user-supplied input is the `search` field
             inside `variables`.
-          default: |
-            query LookupObservable($search: String!) {
-              stixCyberObservables(search: $search) {
-                edges {
-                  node {
-                    id
-                    standard_id
-                    entity_type
-                    observable_value
-                    x_opencti_score
-                    x_opencti_description
-                    created_at
-                    updated_at
-                    createdBy {
-                      ... on Identity {
-                        name
-                        entity_type
-                        contact_information
-                      }
-                    }
-                    objectLabel { value color }
-                    objectMarking { definition definition_type }
-                    indicators {
-                      edges {
-                        node {
+          enum:
+            - |
+              query LookupObservable($search: String!) {
+                stixCyberObservables(search: $search) {
+                  edges {
+                    node {
+                      id
+                      standard_id
+                      entity_type
+                      observable_value
+                      x_opencti_score
+                      x_opencti_description
+                      created_at
+                      updated_at
+                      createdBy {
+                        ... on Identity {
                           name
-                          description
-                          pattern
-                          pattern_type
-                          confidence
-                          x_opencti_score
-                          valid_from
-                          valid_until
-                          created
-                          modified
-                          indicator_types
-                          revoked
-                          externalReferences {
-                            edges {
-                              node {
-                                url
-                                source_name
-                                description
-                                external_id
+                          entity_type
+                          contact_information
+                        }
+                      }
+                      objectLabel { value color }
+                      objectMarking { definition definition_type }
+                      indicators {
+                        edges {
+                          node {
+                            name
+                            description
+                            pattern
+                            pattern_type
+                            confidence
+                            x_opencti_score
+                            valid_from
+                            valid_until
+                            created
+                            modified
+                            indicator_types
+                            revoked
+                            externalReferences {
+                              edges {
+                                node {
+                                  url
+                                  source_name
+                                  description
+                                  external_id
+                                }
+                              }
+                            }
+                            objectLabel { value }
+                            objectMarking { definition }
+                          }
+                        }
+                      }
+                      reports {
+                        edges {
+                          node {
+                            id
+                            name
+                            description
+                            published
+                            confidence
+                            report_types
+                            createdBy { ... on Identity { name } }
+                            objectLabel { value }
+                            externalReferences {
+                              edges {
+                                node { url source_name description }
                               }
                             }
                           }
-                          objectLabel { value }
-                          objectMarking { definition }
                         }
                       }
-                    }
-                    reports {
-                      edges {
-                        node {
-                          id
-                          name
-                          description
-                          published
-                          confidence
-                          report_types
-                          createdBy { ... on Identity { name } }
-                          objectLabel { value }
-                          externalReferences {
-                            edges {
-                              node { url source_name description }
+                      stixCoreRelationships {
+                        edges {
+                          node {
+                            id
+                            relationship_type
+                            description
+                            created_at
+                            updated_at
+                            confidence
+                            start_time
+                            stop_time
+                            createdBy { ... on Identity { name } }
+                            objectLabel { value }
+                            to {
+                              ... on StixCoreObject {
+                                id
+                                entity_type
+                                ... on Malware { name description malware_types }
+                                ... on ThreatActor { name description threat_actor_types }
+                                ... on IntrusionSet { name description }
+                                ... on Campaign { name description }
+                                ... on AttackPattern { name description x_mitre_id }
+                                ... on Tool { name description tool_types }
+                                ... on Vulnerability { name description }
+                                ... on Infrastructure { name description }
+                                ... on Organization { name description }
+                              }
                             }
-                          }
-                        }
-                      }
-                    }
-                    stixCoreRelationships {
-                      edges {
-                        node {
-                          id
-                          relationship_type
-                          description
-                          created_at
-                          updated_at
-                          confidence
-                          start_time
-                          stop_time
-                          createdBy { ... on Identity { name } }
-                          objectLabel { value }
-                          to {
-                            ... on StixCoreObject {
-                              id
-                              entity_type
-                              ... on Malware { name description malware_types }
-                              ... on ThreatActor { name description threat_actor_types }
-                              ... on IntrusionSet { name description }
-                              ... on Campaign { name description }
-                              ... on AttackPattern { name description x_mitre_id }
-                              ... on Tool { name description tool_types }
-                              ... on Vulnerability { name description }
-                              ... on Infrastructure { name description }
-                              ... on Organization { name description }
-                            }
-                          }
-                          from {
-                            ... on StixCoreObject {
-                              id
-                              entity_type
-                              ... on Malware { name description malware_types }
-                              ... on ThreatActor { name description threat_actor_types }
-                              ... on IntrusionSet { name description }
-                              ... on Campaign { name description }
-                              ... on AttackPattern { name description x_mitre_id }
-                              ... on Tool { name description tool_types }
-                              ... on Vulnerability { name description }
-                              ... on Infrastructure { name description }
+                            from {
+                              ... on StixCoreObject {
+                                id
+                                entity_type
+                                ... on Malware { name description malware_types }
+                                ... on ThreatActor { name description threat_actor_types }
+                                ... on IntrusionSet { name description }
+                                ... on Campaign { name description }
+                                ... on AttackPattern { name description x_mitre_id }
+                                ... on Tool { name description tool_types }
+                                ... on Vulnerability { name description }
+                                ... on Infrastructure { name description }
+                              }
                             }
                           }
                         }
@@ -188,7 +191,6 @@ components:
                   }
                 }
               }
-            }
         variables:
           type: object
           required:
