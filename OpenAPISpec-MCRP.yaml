@@ -1,19 +1,28 @@
 openapi: 3.0.3
 
 info:
-  title: Splunk Mission Control - Attach Response Plan
+  title: Splunk Mission Control - Add Response Plan
   description: >
-    Attaches a response plan to an existing Mission Control investigation
-    in Splunk Enterprise Security via the Splunk Cloud management API.
-    Both the investigation_id and response_plan_id are path parameters
-    in the URL. The request body is empty.
+    Applies a response template to an existing Mission Control incident
+    in Splunk Enterprise Security. Based on the official Splunk Mission
+    Control Automation API Reference (mc_openapi.json).
+
+    Key terminology from official docs:
+    - "response template" is the library item (response_template_id)
+    - "response plan" is what it becomes after being applied to an incident
+    - The incident is identified by its GUID or display_id (ES-XXXXX)
+    - The endpoint is v1/incidents not v2/investigations
+
     Authentication uses a Bearer JWT token configured in the Security
     Copilot plugin manifest.
-  version: "1.1.0"
+  version: "2.0.0"
 
 servers:
-  - url: https://es-dev-accenture.splunkcloud.com:8089
-    description: Splunk Cloud management API (port 8089)
+  - url: https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol
+    description: >
+      Splunk Mission Control API. Base path includes the full
+      servicesNS/nobody/missioncontrol prefix as documented in the
+      official MC API reference.
 
 security:
   - ApiKeyAuth: []
@@ -32,37 +41,62 @@ components:
 
   schemas:
 
-    AttachResponsePlanResponse:
+    AddResponsePlanRequest:
       type: object
+      required:
+        - response_template_id
+      description: >
+        Request body for applying a response template to an incident.
+        Per official MC API docs, the field is response_template_id
+        not response_plan_id. These are different things:
+        response_template_id is the library template GUID.
+        The response plan is what gets created on the incident after
+        the template is applied.
       properties:
-
-        investigation_id:
-          type: string
-          description: GUID of the investigation the response plan was attached to.
-          example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
-
-        response_plan_id:
-          type: string
-          description: GUID of the response plan that was attached.
-          example: "e636dfd0-62b2-4cad-9eda-1706e5bf32bc"
-
-        status:
-          type: string
-          description: Status of the attachment operation.
-          example: "attached"
-
-        name:
+        response_template_id:
           type: string
           description: >
-            Display name of the attached response plan as it appears
-            in the Mission Control investigation Response tab.
-          example: "Phishing Response Playbook"
+            The ID of the response template to be applied to the incident.
+            This is the template GUID from the Mission Control response
+            templates library. Per official MC API docs, this field is
+            named response_template_id not response_plan_id.
+            Example: e636dfd0-62b2-4cad-9eda-1706e5bf32bc
+          example: "e636dfd0-62b2-4cad-9eda-1706e5bf32bc"
 
-        attached_at:
+    ResponsePlanResponse:
+      type: object
+      description: >
+        The ResponsePlan object returned after successfully applying
+        a response template to an incident.
+      properties:
+        id:
           type: string
-          format: date-time
-          description: UTC timestamp of when the response plan was attached.
-          example: "2026-05-08T14:00:00Z"
+          description: The GUID of the created response plan instance.
+          example: "142ba3eb-1fd9-4cb3-a040-e139aac107ff"
+        name:
+          type: string
+          description: The name of the applied response plan.
+          example: "Phishing Response Playbook"
+        incident_id:
+          type: string
+          description: The GUID of the incident this response plan was applied to.
+          example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
+        response_template_id:
+          type: string
+          description: The GUID of the source response template.
+          example: "e636dfd0-62b2-4cad-9eda-1706e5bf32bc"
+        status:
+          type: string
+          description: Status of the response plan.
+          example: "active"
+        create_time:
+          type: number
+          description: Unix epoch timestamp of when the response plan was created.
+          example: 1780524542.85943
+        update_time:
+          type: number
+          description: Unix epoch timestamp of last update.
+          example: 1780524542.85943
 
     ErrorResponse:
       type: object
@@ -77,122 +111,92 @@ components:
                 enum: [ERROR, WARN, FATAL]
               text:
                 type: string
-                description: Human-readable error message.
+        code:
+          type: string
+          description: MC error code e.g. MC_0005
+        message:
+          type: string
+          description: Human-readable error message
+        requestId:
+          type: string
+          description: Request ID for support reference
 
 paths:
 
-  /servicesNS/nobody/missioncontrol/public/v2/investigations/{investigation_id}/responseplans/{response_plan_id}:
+  /v1/incidents/{id}/responseplans:
     post:
-      operationId: AttachResponsePlan
-      summary: Attach a response plan to a Mission Control investigation
+      operationId: AddResponsePlan
+      summary: Apply a response template to a Mission Control incident
       description: |
-        Attaches a response plan to an existing Mission Control investigation
-        in Splunk Enterprise Security.
+        Applies a response template to an existing Mission Control incident
+        in Splunk Enterprise Security, creating a response plan on that
+        incident.
 
-        Both the investigation_id and response_plan_id are PATH PARAMETERS
-        embedded in the URL. There is no request body required.
+        Per the official MC Automation API reference:
+        - The endpoint is /v1/incidents/{id}/responseplans
+        - The incident id path parameter accepts either the GUID or
+          the ES-XXXXX display_id
+        - The request body field is response_template_id (NOT response_plan_id)
+        - The base server path is /servicesNS/nobody/missioncontrol
 
-        The correct URL structure is:
-        POST /public/v2/investigations/{investigation_id}/responseplans/{response_plan_id}
+        Full URL example:
+        POST https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol/v1/incidents/8afcb116-632c-4f4f-bc35-9a7557b62c82/responseplans
+        Body: { "response_template_id": "e636dfd0-62b2-4cad-9eda-1706e5bf32bc" }
 
-        Example full URL:
-        POST /servicesNS/nobody/missioncontrol/public/v2/investigations/8afcb116-632c-4f4f-bc35-9a7557b62c82/responseplans/e636dfd0-62b2-4cad-9eda-1706e5bf32bc
+        The id path parameter accepts:
+        - Investigation GUID: 8afcb116-632c-4f4f-bc35-9a7557b62c82
+        - Display ID: ES-00142
 
-        investigation_id: the GUID of the existing MC investigation.
-        Use the UUID returned by CreateMCInvestigation — not the
-        ES-XXXXX display ID.
-
-        response_plan_id: the GUID of the response plan from the
-        Mission Control response plans library in Splunk ES.
-
-        Both must be in standard UUID format:
-        {8}-{4}-{4}-{4}-{12} hex characters.
-
-        #ExamplePrompts Attach response plan e636dfd0-62b2-4cad-9eda-1706e5bf32bc to investigation 8afcb116-632c-4f4f-bc35-9a7557b62c82
-        #ExamplePrompts Add response plan e636dfd0-62b2-4cad-9eda-1706e5bf32bc to the Mission Control investigation
-        #ExamplePrompts Attach a playbook to this Mission Control investigation
-        #ExamplePrompts Link response plan e636dfd0-62b2-4cad-9eda-1706e5bf32bc to the newly created MC investigation
-        #ExamplePrompts Apply response plan to investigation 8afcb116-632c-4f4f-bc35-9a7557b62c82
+        #ExamplePrompts Apply response template e636dfd0-62b2-4cad-9eda-1706e5bf32bc to incident 8afcb116-632c-4f4f-bc35-9a7557b62c82
+        #ExamplePrompts Add response plan to Mission Control incident 8afcb116-632c-4f4f-bc35-9a7557b62c82
+        #ExamplePrompts Apply response template e636dfd0-62b2-4cad-9eda-1706e5bf32bc to the newly created investigation
+        #ExamplePrompts Attach a response plan to this Mission Control incident
+        #ExamplePrompts Add response template to investigation ES-00142
       tags:
         - Mission Control Response Plans
       parameters:
-        - name: investigation_id
+        - name: id
           in: path
           required: true
           description: >
-            The GUID of the Mission Control investigation to attach the
-            response plan to. Must be the full UUID returned by
-            CreateMCInvestigation — not the ES-XXXXX display ID.
+            The id (GUID) or the display_id of the incident.
+            Accepts either format per official MC API docs:
+            - GUID format: 8afcb116-632c-4f4f-bc35-9a7557b62c82
+            - Display ID format: ES-00142
           schema:
             type: string
           example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
-        - name: response_plan_id
-          in: path
-          required: true
-          description: >
-            The GUID of the response plan to attach. Obtain this from
-            the Mission Control response plans library in Splunk ES.
-            Must be in standard UUID format.
-          schema:
-            type: string
-          example: "e636dfd0-62b2-4cad-9eda-1706e5bf32bc"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddResponsePlanRequest'
+            examples:
+              apply_template:
+                summary: Apply response template to incident
+                value:
+                  response_template_id: "e636dfd0-62b2-4cad-9eda-1706e5bf32bc"
       responses:
         '200':
-          description: Response plan successfully attached to the investigation.
+          description: Response template successfully applied. Returns the created ResponsePlan object.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AttachResponsePlanResponse'
-              example:
-                investigation_id: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
-                response_plan_id: "e636dfd0-62b2-4cad-9eda-1706e5bf32bc"
-                status: "attached"
-                name: "Phishing Response Playbook"
-                attached_at: "2026-05-08T14:00:00Z"
+                $ref: '#/components/schemas/ResponsePlanResponse'
         '400':
           description: >
-            Bad request. investigation_id or response_plan_id malformed
-            or not in valid UUID format.
+            Bad format. response_template_id missing or malformed.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized. JWT token missing, expired, or malformed.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: >
-            Forbidden. Token does not have sufficient permissions to
-            attach response plans. Requires ess_analyst role minimum.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: >
-            Not found. The investigation_id or response_plan_id does not
-            exist or is not accessible by the authenticated user.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '409':
-          description: >
-            Conflict. This response plan is already attached to the
-            specified investigation.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '429':
-          description: Rate limit exceeded. Retry after the Retry-After interval.
-          headers:
-            Retry-After:
-              schema:
-                type: integer
+            Forbidden. Token does not have permission to apply response
+            templates. Requires ess_analyst role minimum.
         '500':
           description: Internal server error on the Splunk stack.
           content:
@@ -203,8 +207,9 @@ paths:
 tags:
   - name: Mission Control Response Plans
     description: >
-      Attaches response plans to existing Mission Control investigations
-      in Splunk Enterprise Security via the v2 API on port 8089.
-      Both investigation_id and response_plan_id are path parameters.
-      No request body is required. Authentication uses APIKey with
-      Bearer scheme matching the existing Splunk Security Copilot integration.
+      Applies response templates to existing Mission Control incidents
+      per the official Splunk MC Automation API reference.
+      Endpoint: POST /v1/incidents/{id}/responseplans
+      Server: https://{stack}:8089/servicesNS/nobody/missioncontrol
+      Request body field: response_template_id (not response_plan_id)
+      The id path parameter accepts GUID or ES-XXXXX display_id.
