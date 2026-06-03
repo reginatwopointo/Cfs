@@ -5,11 +5,11 @@ info:
   description: >
     Attaches a response plan to an existing Mission Control investigation
     in Splunk Enterprise Security via the Splunk Cloud management API.
-    Requires the investigation GUID from a previously created investigation
-    and the response plan ID to attach.
+    Both the investigation_id and response_plan_id are path parameters
+    in the URL. The request body is empty.
     Authentication uses a Bearer JWT token configured in the Security
     Copilot plugin manifest.
-  version: "1.0.0"
+  version: "1.1.0"
 
 servers:
   - url: https://es-dev-accenture.splunkcloud.com:8089
@@ -32,48 +32,30 @@ components:
 
   schemas:
 
-    AttachResponsePlanRequest:
-      type: object
-      required:
-        - response_plan_id
-      properties:
-
-        response_plan_id:
-          type: string
-          description: >
-            The GUID of the response plan to attach to the investigation.
-            Obtain this from the Mission Control response plans library
-            in Splunk ES. Format is a standard UUID.
-            Example: e636dfd0-62b2-4cad-9eda-1706e5bf32bc
-          example: "e636dfd0-62b2-4cad-9eda-1706e5bf32bc"
-
     AttachResponsePlanResponse:
       type: object
       properties:
 
         investigation_id:
           type: string
-          description: >
-            GUID of the investigation the response plan was attached to.
+          description: GUID of the investigation the response plan was attached to.
           example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
 
         response_plan_id:
           type: string
-          description: >
-            GUID of the response plan that was attached.
+          description: GUID of the response plan that was attached.
           example: "e636dfd0-62b2-4cad-9eda-1706e5bf32bc"
 
         status:
           type: string
-          description: >
-            Status of the attachment operation.
+          description: Status of the attachment operation.
           example: "attached"
 
         name:
           type: string
           description: >
             Display name of the attached response plan as it appears
-            in the Mission Control investigation.
+            in the Mission Control investigation Response tab.
           example: "Phishing Response Playbook"
 
         attached_at:
@@ -99,29 +81,35 @@ components:
 
 paths:
 
-  /servicesNS/nobody/missioncontrol/public/v2/investigations/{investigation_id}/responseplans:
+  /servicesNS/nobody/missioncontrol/public/v2/investigations/{investigation_id}/responseplans/{response_plan_id}:
     post:
       operationId: AttachResponsePlan
       summary: Attach a response plan to a Mission Control investigation
       description: |
         Attaches a response plan to an existing Mission Control investigation
-        identified by its investigation GUID. The response plan is identified
-        by its response_plan_id in the request body.
+        in Splunk Enterprise Security.
 
-        The investigation_id path parameter is the GUID returned when the
-        investigation was created via CreateMCInvestigation. It is not the
-        display ID (ES-XXXXX) — it must be the full UUID format.
-        Example: 8afcb116-632c-4f4f-bc35-9a7557b62c82
+        Both the investigation_id and response_plan_id are PATH PARAMETERS
+        embedded in the URL. There is no request body required.
 
-        The response_plan_id is the GUID of the response plan from the
-        Mission Control response plans library.
-        Example: e636dfd0-62b2-4cad-9eda-1706e5bf32bc
+        The correct URL structure is:
+        POST /public/v2/investigations/{investigation_id}/responseplans/{response_plan_id}
 
-        Both IDs must be in standard UUID format
+        Example full URL:
+        POST /servicesNS/nobody/missioncontrol/public/v2/investigations/8afcb116-632c-4f4f-bc35-9a7557b62c82/responseplans/e636dfd0-62b2-4cad-9eda-1706e5bf32bc
+
+        investigation_id: the GUID of the existing MC investigation.
+        Use the UUID returned by CreateMCInvestigation — not the
+        ES-XXXXX display ID.
+
+        response_plan_id: the GUID of the response plan from the
+        Mission Control response plans library in Splunk ES.
+
+        Both must be in standard UUID format:
         {8}-{4}-{4}-{4}-{12} hex characters.
 
         #ExamplePrompts Attach response plan e636dfd0-62b2-4cad-9eda-1706e5bf32bc to investigation 8afcb116-632c-4f4f-bc35-9a7557b62c82
-        #ExamplePrompts Add a response plan to the Mission Control investigation
+        #ExamplePrompts Add response plan e636dfd0-62b2-4cad-9eda-1706e5bf32bc to the Mission Control investigation
         #ExamplePrompts Attach a playbook to this Mission Control investigation
         #ExamplePrompts Link response plan e636dfd0-62b2-4cad-9eda-1706e5bf32bc to the newly created MC investigation
         #ExamplePrompts Apply response plan to investigation 8afcb116-632c-4f4f-bc35-9a7557b62c82
@@ -133,26 +121,21 @@ paths:
           required: true
           description: >
             The GUID of the Mission Control investigation to attach the
-            response plan to. This is the investigation_id UUID returned
-            by the CreateMCInvestigation plugin, not the ES-XXXXX display ID.
+            response plan to. Must be the full UUID returned by
+            CreateMCInvestigation — not the ES-XXXXX display ID.
           schema:
             type: string
           example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AttachResponsePlanRequest'
-            examples:
-              phishing_plan:
-                summary: Attach phishing response plan to investigation
-                value:
-                  response_plan_id: "e636dfd0-62b2-4cad-9eda-1706e5bf32bc"
-              malware_plan:
-                summary: Attach malware response plan to investigation
-                value:
-                  response_plan_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        - name: response_plan_id
+          in: path
+          required: true
+          description: >
+            The GUID of the response plan to attach. Obtain this from
+            the Mission Control response plans library in Splunk ES.
+            Must be in standard UUID format.
+          schema:
+            type: string
+          example: "e636dfd0-62b2-4cad-9eda-1706e5bf32bc"
       responses:
         '200':
           description: Response plan successfully attached to the investigation.
@@ -168,8 +151,8 @@ paths:
                 attached_at: "2026-05-08T14:00:00Z"
         '400':
           description: >
-            Bad request. Common causes: response_plan_id missing or
-            malformed, investigation_id not in valid UUID format.
+            Bad request. investigation_id or response_plan_id malformed
+            or not in valid UUID format.
           content:
             application/json:
               schema:
@@ -222,7 +205,6 @@ tags:
     description: >
       Attaches response plans to existing Mission Control investigations
       in Splunk Enterprise Security via the v2 API on port 8089.
-      Requires the investigation GUID (not ES-XXXXX display ID) and
-      the response plan GUID. Both must be in standard UUID format.
-      Authentication uses APIKey with Bearer scheme matching the
-      existing Splunk Security Copilot integration.
+      Both investigation_id and response_plan_id are path parameters.
+      No request body is required. Authentication uses APIKey with
+      Bearer scheme matching the existing Splunk Security Copilot integration.
