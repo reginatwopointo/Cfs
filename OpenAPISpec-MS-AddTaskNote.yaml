@@ -1,0 +1,141 @@
+openapi: 3.0.3
+info:
+  title: Splunk Mission Control — Add Task Note
+  description: >
+    Adds a note (title + content) to a specific response plan task inside a
+    Splunk Mission Control investigation. Requires the incident GUID,
+    response_plan_id, phase_id, and task_id — all retrievable via the
+    GetIncidentTasks / GetPhaseId / GetTaskId plugins.
+  version: 1.0.0
+
+servers:
+  - url: https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol
+
+paths:
+  /v1/incidents/{incident_id}/responseplans/{response_plan_id}/phase/{phase_id}/tasks/{task_id}/notes:
+    post:
+      operationId: AddTaskNote
+      summary: Add a note to a response plan task
+      description: >
+        Adds a note with a title and content body to a specific task in a
+        Mission Control response plan. Use this to record investigation
+        findings, Security Copilot analysis output, or analyst observations
+        directly against the relevant task.
+
+        Required path parameters:
+        - incident_id: the GUID of the MC investigation (e.g. 8afcb116-632c-4f4f-bc35-9a7557b62c82)
+        - response_plan_id: the GUID of the response plan attached to the incident
+        - phase_id: the GUID of the response plan phase containing the target task
+        - task_id: the GUID of the task to annotate
+
+        Required body fields:
+        - title: short label for the note (string)
+        - content: full note body — paste Security Copilot output here (string)
+
+        #ExamplePrompts
+        - Add a task note to incident 8afcb116-632c-4f4f-bc35-9a7557b62c82 response plan abc123 phase def456 task ghi789 with title "Triage Summary" and content "No lateral movement detected."
+        - AddTaskNote incident_id 8afcb116-... response_plan_id abc... phase_id def... task_id ghi... title "Analysis" content "Findings from Security Copilot..."
+        - Write the following Security Copilot output to task note: [output text]
+
+      parameters:
+        - name: incident_id
+          in: path
+          required: true
+          description: The GUID of the Mission Control investigation (incident).
+          schema:
+            type: string
+            example: 8afcb116-632c-4f4f-bc35-9a7557b62c82
+
+        - name: response_plan_id
+          in: path
+          required: true
+          description: The GUID of the response plan attached to the incident.
+          schema:
+            type: string
+            example: e636dfd0-62b2-4cad-9eda-1706e5bf32bc
+
+        - name: phase_id
+          in: path
+          required: true
+          description: The GUID of the phase within the response plan.
+          schema:
+            type: string
+            example: 4edb5c77-0ac3-4d49-842b-19b0eff4d8fd
+
+        - name: task_id
+          in: path
+          required: true
+          description: The GUID of the task to attach the note to.
+          schema:
+            type: string
+            example: 74730fac-1d5c-4713-bef5-d30ed1c62188
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - content
+              properties:
+                title:
+                  type: string
+                  description: >
+                    Short label for the note. Keep it descriptive — e.g.
+                    "Security Copilot Triage Output" or "IOC Analysis Result".
+                  example: Security Copilot Triage Output
+                content:
+                  type: string
+                  description: >
+                    Full text body of the note. Paste Security Copilot agent
+                    output directly here. Plain text; Markdown is preserved by
+                    the MC UI.
+                  example: "Analysis complete. No C2 beaconing detected on host 10.1.2.3."
+
+      responses:
+        "201":
+          description: Note created successfully. Returns the new note object.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: GUID of the newly created note.
+                    example: 2f34ab66-929e-438d-b294-7ce5ea5415d4
+                  title:
+                    type: string
+                    example: Security Copilot Triage Output
+                  content:
+                    type: string
+                    example: Analysis complete.
+                  author:
+                    type: object
+                    properties:
+                      username:
+                        type: string
+                        example: admin
+                  create_time:
+                    type: number
+                    example: 1676494561.553658
+        "400":
+          description: Bad request — missing required fields or malformed body.
+        "401":
+          description: Unauthorized — check Bearer token.
+        "403":
+          description: Forbidden — user lacks write permission on this incident.
+        "500":
+          description: Internal server error.
+
+      security:
+        - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: apiKey
+      in: header
+      name: Authorization
