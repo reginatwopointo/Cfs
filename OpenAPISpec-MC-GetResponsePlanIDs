@@ -1,0 +1,387 @@
+openapi: 3.0.3
+
+info:
+  title: Splunk Mission Control - Get Response Plan IDs
+  description: >
+    Retrieves phase IDs and task IDs from a Mission Control incident's
+    response plan in Splunk Enterprise Security. Provides three lookup
+    operations confirmed from the official Splunk MC Automation API
+    reference (mc_openapi.json):
+
+    1. GetIncidentTasks - returns all tasks with their phase_id and
+       task_id across all response plans on the incident. Use this
+       first when you do not know the IDs yet.
+
+    2. GetPhaseId - returns the phase_id for a named phase within
+       a named response template on the incident.
+
+    3. GetTaskId - returns the task_id for a named task within a
+       named phase on the incident.
+
+    The IDs retrieved here are required inputs for subsequent
+    operations such as adding notes to specific response plan tasks
+    via POST /v1/incidents/{id}/responseplans/{response_plan_id}
+    /phase/{phase_id}/tasks/{task_id}/notes.
+  version: "1.0.0"
+
+servers:
+  - url: https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol
+    description: >
+      Splunk Mission Control API. Base path includes the full
+      servicesNS/nobody/missioncontrol prefix as documented in
+      the official MC API reference.
+
+security:
+  - ApiKeyAuth: []
+
+components:
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: >
+        Splunk Cloud JWT Bearer token injected by Security Copilot
+        as configured in the plugin manifest Authorization block.
+        Header value format: Bearer <jwt>
+
+  schemas:
+
+    IncidentTask:
+      type: object
+      description: >
+        A task object from a Mission Control incident response plan.
+        Contains the task_id, phase_id, response_plan_id, and name
+        fields needed for subsequent task operations such as adding
+        notes.
+      properties:
+        id:
+          type: string
+          description: The GUID of the task (task_id).
+          example: "74730fac-1d5c-4713-bef5-d30ed1c62188"
+        name:
+          type: string
+          description: The display name of the task.
+          example: "Contain the threat"
+        phase_id:
+          type: string
+          description: >
+            The GUID of the phase this task belongs to.
+            Required for add task note operations.
+          example: "e4317f74-2ca2-4812-9805-07c7e9aeaa40"
+        response_plan_id:
+          type: string
+          description: >
+            The GUID of the response plan this task belongs to.
+            Required for add task note operations.
+          example: "c674507-50c2-4a94-b458-fdcb5eec333d"
+        status:
+          type: string
+          description: Current status of the task.
+          example: "incomplete"
+        description:
+          type: string
+          description: Description of the task.
+          example: "Isolate the affected endpoint from the network"
+        assignee:
+          type: string
+          description: User assigned to this task.
+          example: "analyst1"
+        phase_name:
+          type: string
+          description: Name of the phase this task belongs to.
+          example: "Containment"
+        response_plan_name:
+          type: string
+          description: Name of the response plan this task belongs to.
+          example: "Phishing Response Playbook"
+
+    GetPhaseIdResponse:
+      type: object
+      description: >
+        Response from get_phase_id containing the phase_id
+        for the requested phase name within the response template.
+      properties:
+        phase_id:
+          type: string
+          description: >
+            The GUID of the phase matching the provided
+            phase_name and response_template_name.
+          example: "e4317f74-2ca2-4812-9805-07c7e9aeaa40"
+
+    GetTaskIdResponse:
+      type: object
+      description: >
+        Response from get_task_id containing the task_id
+        for the requested task name within the phase and
+        response template.
+      properties:
+        task_id:
+          type: string
+          description: >
+            The GUID of the task matching the provided task_name,
+            phase_name, and response_template_name.
+          example: "74730fac-1d5c-4713-bef5-d30ed1c62188"
+
+    ErrorResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [ERROR, WARN, FATAL]
+              text:
+                type: string
+        code:
+          type: string
+          description: MC error code e.g. MC_0005
+        message:
+          type: string
+
+paths:
+
+  /v1/incidents/{id}/tasks:
+    get:
+      operationId: GetIncidentTasks
+      summary: Get all tasks and their IDs from a Mission Control incident
+      description: |
+        Returns all tasks across all response plans and phases on a
+        Mission Control incident. Each task object includes its task_id,
+        phase_id, response_plan_id, name, and status.
+
+        Use this operation first when you do not know the phase_id or
+        task_id yet. The response gives you everything needed to
+        subsequently add notes to a specific task.
+
+        The id path parameter accepts either the incident GUID or the
+        ES-XXXXX display_id per the official MC API docs.
+
+        After retrieving tasks, identify the target task by its name
+        field and extract its id (task_id), phase_id, and
+        response_plan_id for use in add task note operations.
+
+        #ExamplePrompts Get all tasks for incident 8afcb116-632c-4f4f-bc35-9a7557b62c82
+        #ExamplePrompts List all response plan tasks for this Mission Control investigation
+        #ExamplePrompts Show me the tasks and their IDs for investigation 8afcb116-632c-4f4f-bc35-9a7557b62c82
+        #ExamplePrompts What tasks are in the response plan for this incident
+        #ExamplePrompts Get task IDs and phase IDs for incident 8afcb116-632c-4f4f-bc35-9a7557b62c82
+      tags:
+        - Response Plan ID Lookup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: >
+            The id (GUID) or the display_id of the incident.
+            Accepts either format per official MC API docs:
+            - GUID: 8afcb116-632c-4f4f-bc35-9a7557b62c82
+            - Display ID: ES-00142
+          schema:
+            type: string
+          example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
+      responses:
+        '200':
+          description: >
+            Array of all tasks on the incident across all response
+            plans and phases. Each task includes its task_id (id field),
+            phase_id, response_plan_id, and name.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IncidentTask'
+        '400':
+          description: Bad format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized. JWT token missing or invalid.
+        '403':
+          description: Forbidden. Insufficient permissions.
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/incidents/{id}/get_phase_id:
+    get:
+      operationId: GetPhaseId
+      summary: Get phase ID by response template name and phase name
+      description: |
+        Retrieves the phase_id for a named phase within a named response
+        template on a specific incident. Use this when you know the
+        response template name and phase name but not the phase_id GUID.
+
+        All three inputs are required: the incident id path parameter,
+        response_template_name query parameter, and phase_name query
+        parameter.
+
+        The returned phase_id is required for add task note operations
+        at: POST /v1/incidents/{id}/responseplans/{response_plan_id}
+        /phase/{phase_id}/tasks/{task_id}/notes
+
+        #ExamplePrompts Get the phase ID for phase Containment in response template Phishing Response Playbook for incident 8afcb116-632c-4f4f-bc35-9a7557b62c82
+        #ExamplePrompts Look up phase ID by name for this Mission Control investigation
+        #ExamplePrompts Find the phase_id for the Containment phase in this incident
+      tags:
+        - Response Plan ID Lookup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: >
+            The id (GUID) or the display_id of the incident.
+          schema:
+            type: string
+          example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
+        - name: response_template_name
+          in: query
+          required: true
+          description: >
+            The name of the response template applied to this incident.
+            Must match exactly the template name as it appears in the
+            Mission Control response templates library.
+          schema:
+            type: string
+          example: "Phishing Response Playbook"
+        - name: phase_name
+          in: query
+          required: true
+          description: >
+            The name of the phase within the response template for
+            which you want to retrieve the phase_id. Must match
+            exactly the phase name as it appears in the template.
+          schema:
+            type: string
+          example: "Containment"
+      responses:
+        '201':
+          description: Retrieved phase ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetPhaseIdResponse'
+        '400':
+          description: >
+            Bad request. response_template_name or phase_name not
+            found on this incident.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized. JWT token missing or invalid.
+        '403':
+          description: Forbidden. Insufficient permissions.
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/incidents/{id}/get_task_id:
+    get:
+      operationId: GetTaskId
+      summary: Get task ID by response template name, phase name, and task name
+      description: |
+        Retrieves the task_id for a named task within a named phase
+        and response template on a specific incident. Use this when
+        you know the task name but not its task_id GUID.
+
+        All four inputs are required: the incident id path parameter,
+        response_template_name, phase_name, and task_name query
+        parameters.
+
+        The returned task_id is required for add task note operations
+        at: POST /v1/incidents/{id}/responseplans/{response_plan_id}
+        /phase/{phase_id}/tasks/{task_id}/notes
+
+        #ExamplePrompts Get the task ID for task Isolate Endpoint in phase Containment in response template Phishing Response Playbook for incident 8afcb116-632c-4f4f-bc35-9a7557b62c82
+        #ExamplePrompts Look up task ID by name for this Mission Control investigation
+        #ExamplePrompts Find the task_id for the Isolate Endpoint task in this incident
+        #ExamplePrompts Get task ID for task name Block IP in the Detection phase
+      tags:
+        - Response Plan ID Lookup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: >
+            The id (GUID) or the display_id of the incident.
+          schema:
+            type: string
+          example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
+        - name: response_template_name
+          in: query
+          required: true
+          description: >
+            The name of the response template applied to this incident.
+            Must match exactly as it appears in the Mission Control
+            response templates library.
+          schema:
+            type: string
+          example: "Phishing Response Playbook"
+        - name: phase_name
+          in: query
+          required: true
+          description: >
+            The name of the phase containing the task. Must match
+            exactly as it appears in the response template.
+          schema:
+            type: string
+          example: "Containment"
+        - name: task_name
+          in: query
+          required: true
+          description: >
+            The name of the task for which you want to retrieve the
+            task_id. Must match exactly as it appears in the phase.
+          schema:
+            type: string
+          example: "Isolate Endpoint"
+      responses:
+        '201':
+          description: Retrieved task ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTaskIdResponse'
+        '400':
+          description: >
+            Bad request. response_template_name, phase_name, or
+            task_name not found on this incident.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized. JWT token missing or invalid.
+        '403':
+          description: Forbidden. Insufficient permissions.
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Response Plan ID Lookup
+    description: >
+      GET operations for retrieving phase_id and task_id values from
+      Mission Control incident response plans. Confirmed from the
+      official Splunk MC Automation API reference (mc_openapi.json).
+      All three operations use the incident id path parameter which
+      accepts either the GUID or the ES-XXXXX display_id.
+      Server: https://{stack}:8089/servicesNS/nobody/missioncontrol
