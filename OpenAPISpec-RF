@@ -1,0 +1,615 @@
+openapi: 3.0.3
+
+info:
+  title: Recorded Future Threat Intelligence
+  description: >
+    Enriches cyber observables (IP addresses, domains, file hashes, and URLs)
+    with threat intelligence from the Recorded Future API v2.
+    Returns risk scores, rule breakdowns, WHOIS, sightings, related entities,
+    threat lists, analyst notes, and direct links to the RF intelligence card.
+  version: 1.0.0
+
+servers:
+  - url: https://api.recordedfuture.com/v2
+    description: Recorded Future API v2
+
+security:
+  - RFTokenAuth: []
+
+components:
+
+  securitySchemes:
+    RFTokenAuth:
+      type: apiKey
+      in: header
+      name: X-RFToken
+      description: >
+        Recorded Future API token. Injected by Security Copilot from the
+        plugin manifest Authorization block. Do not prefix with Bearer.
+
+  schemas:
+
+    RiskDetail:
+      type: object
+      description: Risk score and triggered rule details.
+      properties:
+        score:
+          type: integer
+          description: Overall risk score 0–100. 0–24 = no/low risk, 25–64 = unusual, 65–89 = malicious, 90–100 = very malicious.
+          example: 72
+        criticality:
+          type: integer
+          description: Criticality level integer (1=unusual, 2=suspicious, 3=malicious, 4=very malicious).
+          example: 3
+        criticalityLabel:
+          type: string
+          description: Human-readable criticality label.
+          example: "Malicious"
+        riskSummary:
+          type: string
+          description: Brief natural-language summary of the risk.
+          example: "Historically reported as a C2 node"
+        evidenceDetails:
+          type: array
+          description: List of triggered risk rules with timestamps and descriptions.
+          items:
+            type: object
+            properties:
+              rule:
+                type: string
+                example: "Historically Reported as a C2 Server"
+              criticality:
+                type: integer
+                example: 3
+              criticalityLabel:
+                type: string
+                example: "Malicious"
+              timestamp:
+                type: string
+                example: "2024-11-01T00:00:00.000Z"
+              evidenceString:
+                type: string
+                example: "2 sightings on 2 sources: abuse.ch, Shodan."
+
+    TimestampDetail:
+      type: object
+      properties:
+        firstSeen:
+          type: string
+          example: "2018-05-02T00:00:00.000Z"
+        lastSeen:
+          type: string
+          example: "2025-05-20T00:00:00.000Z"
+
+    MetricsDetail:
+      type: object
+      description: Sighting and subscore counts.
+      properties:
+        type:
+          type: string
+          example: "totalHits"
+        value:
+          type: integer
+          example: 77
+
+paths:
+
+  /ip/{value}:
+    get:
+      operationId: GetIPReputation
+      summary: Get Recorded Future threat intelligence for an IP address
+      description: |
+        Retrieves threat intelligence for a given IPv4 or IPv6 address from
+        Recorded Future, including risk score, triggered rules, geolocation,
+        ASN, sightings, related entities, threat lists, and analyst notes.
+
+        Use this operation when:
+        - The user provides an IP address and asks for its reputation or risk
+        - The user asks "is this IP malicious" or "look up this IP in Recorded Future"
+        - An incident or alert contains an IP address to be enriched
+
+        Output format rules:
+        - Always display the risk score and criticalityLabel prominently
+        - List all triggered evidenceDetails rules with timestamps
+        - Show location (country, ASN, org) if present
+        - Show threatLists if any — none means the IP is not on known threat feeds
+        - Show top 5 sightings with source and date
+        - Always output the intelCard URL so the analyst can open the full RF card
+        - Never truncate analyst notes
+
+        #ExamplePrompts Check Recorded Future reputation for IP 185.220.101.5
+        #ExamplePrompts Look up 45.33.32.156 in Recorded Future
+        #ExamplePrompts Is 8.8.8.8 malicious according to Recorded Future
+        #ExamplePrompts Recorded Future TI for IP address 192.168.1.1
+        #ExamplePrompts GetIPReputation 185.220.101.5
+      parameters:
+        - name: value
+          in: path
+          required: true
+          description: IPv4 or IPv6 address to look up.
+          schema:
+            type: string
+          example: "185.220.101.5"
+        - name: fields
+          in: query
+          required: false
+          description: Comma-separated list of fields to return.
+          schema:
+            type: string
+            enum:
+              - "risk,intelCard,timestamps,metrics,relatedEntities,threatLists,analystNotes,counts,entity,links,sightings,location,rawrisk,malwareC2Urls"
+            default: "risk,intelCard,timestamps,metrics,relatedEntities,threatLists,analystNotes,counts,entity,links,sightings,location,rawrisk,malwareC2Urls"
+      responses:
+        "200":
+          description: Threat intelligence data for the IP address.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      entity:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            example: "ip:185.220.101.5"
+                          name:
+                            type: string
+                            example: "185.220.101.5"
+                          type:
+                            type: string
+                            example: "IpAddress"
+                      risk:
+                        $ref: '#/components/schemas/RiskDetail'
+                      timestamps:
+                        $ref: '#/components/schemas/TimestampDetail'
+                      intelCard:
+                        type: string
+                        description: Direct URL to the RF intelligence card for this IP.
+                        example: "https://app.recordedfuture.com/portal/intelligence-card/ip%3A185.220.101.5"
+                      location:
+                        type: object
+                        description: Geolocation and ASN data.
+                        properties:
+                          asn:
+                            type: string
+                            example: "AS13335"
+                          organization:
+                            type: string
+                            example: "Cloudflare, Inc."
+                          cidr:
+                            type: object
+                          location:
+                            type: object
+                            properties:
+                              country:
+                                type: string
+                                example: "United States"
+                              city:
+                                type: string
+                                example: "San Francisco"
+                      threatLists:
+                        type: array
+                        description: Known threat feed memberships. Empty array means not on any list.
+                        items:
+                          type: object
+                          properties:
+                            description:
+                              type: string
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            type:
+                              type: string
+                      sightings:
+                        type: array
+                        description: Recent sighting references from intelligence sources.
+                        items:
+                          type: object
+                          properties:
+                            source:
+                              type: string
+                            published:
+                              type: string
+                            title:
+                              type: string
+                            type:
+                              type: string
+                            url:
+                              type: string
+                      analystNotes:
+                        type: array
+                        description: Analyst-authored notes attached to this indicator.
+                        items:
+                          type: object
+                      malwareC2Urls:
+                        type: array
+                        description: Known C2 URLs associated with this IP.
+                        items:
+                          type: object
+        "404":
+          description: IP address not found in Recorded Future.
+        "401":
+          description: Unauthorized — invalid or missing X-RFToken.
+
+  /domain/{value}:
+    get:
+      operationId: GetDomainReputation
+      summary: Get Recorded Future threat intelligence for a domain
+      description: |
+        Retrieves threat intelligence for a given domain from Recorded Future,
+        including risk score, triggered rules, WHOIS registration data, sightings,
+        related domains and hashes, threat lists, and analyst notes.
+
+        Use this operation when:
+        - The user provides a domain name and asks for its reputation or risk
+        - The user asks "is this domain malicious" or "look up this domain in Recorded Future"
+        - An incident or alert contains a domain to be enriched
+        - A phishing or C2 investigation requires domain attribution
+
+        Output format rules:
+        - Always display the risk score and criticalityLabel prominently
+        - List all triggered evidenceDetails rules with timestamps and evidenceString
+        - Show WHOIS data: registrar, registrant org, creation date, expiry date, nameservers
+        - Show threatLists if any
+        - Show top 5 sightings with source, date, and title
+        - Show top 10 relatedEntities (domains, hashes) with hit counts
+        - Always output the intelCard URL
+        - Never truncate analyst notes
+
+        #ExamplePrompts Check Recorded Future reputation for domain evil.com
+        #ExamplePrompts Look up vrustotal.com in Recorded Future
+        #ExamplePrompts Is this domain malicious according to Recorded Future: phishing-site.net
+        #ExamplePrompts Recorded Future TI for domain c2-server.ru
+        #ExamplePrompts GetDomainReputation evil.com
+      parameters:
+        - name: value
+          in: path
+          required: true
+          description: Domain name to look up (e.g. evil.com). Do not include protocol or path.
+          schema:
+            type: string
+          example: "vrustotal.com"
+        - name: fields
+          in: query
+          required: false
+          description: Comma-separated list of fields to return.
+          schema:
+            type: string
+            enum:
+              - "risk,intelCard,timestamps,metrics,relatedEntities,threatLists,analystNotes,counts,entity,links,sightings,whois,subdomains,rawrisk,malwareC2Urls"
+            default: "risk,intelCard,timestamps,metrics,relatedEntities,threatLists,analystNotes,counts,entity,links,sightings,whois,subdomains,rawrisk,malwareC2Urls"
+      responses:
+        "200":
+          description: Threat intelligence data for the domain.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      entity:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            example: "idn:vrustotal.com"
+                          name:
+                            type: string
+                            example: "vrustotal.com"
+                          type:
+                            type: string
+                            example: "InternetDomainName"
+                      risk:
+                        $ref: '#/components/schemas/RiskDetail'
+                      timestamps:
+                        $ref: '#/components/schemas/TimestampDetail'
+                      intelCard:
+                        type: string
+                        example: "https://app.recordedfuture.com/portal/intelligence-card/idn%3Avrustotal.com"
+                      whois:
+                        type: object
+                        description: WHOIS registration data.
+                        properties:
+                          registrarName:
+                            type: string
+                            example: "GoDaddy.com, LLC"
+                          registrantOrg:
+                            type: string
+                            example: "Domains By Proxy, LLC"
+                          createdDate:
+                            type: string
+                            example: "2018-04-30"
+                          expiresDate:
+                            type: string
+                            example: "2026-04-30"
+                          nameServers:
+                            type: array
+                            items:
+                              type: string
+                            example: ["ns1.example.com", "ns2.example.com"]
+                      threatLists:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            description:
+                              type: string
+                      sightings:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            source:
+                              type: string
+                            published:
+                              type: string
+                            title:
+                              type: string
+                            url:
+                              type: string
+                      analystNotes:
+                        type: array
+                        items:
+                          type: object
+                      subdomains:
+                        type: array
+                        description: Known subdomains.
+                        items:
+                          type: string
+        "404":
+          description: Domain not found in Recorded Future.
+        "401":
+          description: Unauthorized — invalid or missing X-RFToken.
+
+  /hash/{value}:
+    get:
+      operationId: GetHashReputation
+      summary: Get Recorded Future threat intelligence for a file hash
+      description: |
+        Retrieves threat intelligence for a given file hash (MD5, SHA-1, or SHA-256)
+        from Recorded Future, including risk score, triggered rules, associated malware
+        families, observed file names, threat lists, sightings, and analyst notes.
+
+        Use this operation when:
+        - The user provides a file hash and asks for its reputation or risk
+        - The user asks "is this hash malicious" or "look up this hash in Recorded Future"
+        - An incident or alert contains a file hash to be enriched
+        - Malware triage requires hash attribution to a malware family
+
+        Output format rules:
+        - Always display the risk score and criticalityLabel prominently
+        - List all triggered evidenceDetails rules with timestamps
+        - Show associated malware families and their names
+        - Show observed file names (names field) — these reveal how the file is disguised
+        - Show file size if present
+        - Show threatLists if any
+        - Show top 5 sightings
+        - Always output the intelCard URL
+        - Never truncate analyst notes
+
+        #ExamplePrompts Check Recorded Future reputation for hash 44d88612fea8a8f36de82e1278abb02f
+        #ExamplePrompts Look up SHA256 275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f in Recorded Future
+        #ExamplePrompts Is this file hash malicious: 896ccf899b9d45c1c119ba35d6cce6e16cc10dd6a7f502f88fb50429a6e5cf4c
+        #ExamplePrompts GetHashReputation 44d88612fea8a8f36de82e1278abb02f
+      parameters:
+        - name: value
+          in: path
+          required: true
+          description: >
+            File hash to look up. Accepts MD5 (32 hex chars), SHA-1 (40 hex chars),
+            or SHA-256 (64 hex chars). Pass the raw hex string without any prefix.
+          schema:
+            type: string
+          example: "44d88612fea8a8f36de82e1278abb02f"
+        - name: fields
+          in: query
+          required: false
+          description: Comma-separated list of fields to return.
+          schema:
+            type: string
+            enum:
+              - "risk,intelCard,timestamps,metrics,relatedEntities,threatLists,analystNotes,counts,entity,links,sightings,rawrisk,hashAlgorithm,names,malwares,size"
+            default: "risk,intelCard,timestamps,metrics,relatedEntities,threatLists,analystNotes,counts,entity,links,sightings,rawrisk,hashAlgorithm,names,malwares,size"
+      responses:
+        "200":
+          description: Threat intelligence data for the file hash.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      entity:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            example: "hash:44d88612fea8a8f36de82e1278abb02f"
+                          name:
+                            type: string
+                            example: "44d88612fea8a8f36de82e1278abb02f"
+                          type:
+                            type: string
+                            example: "Hash"
+                      risk:
+                        $ref: '#/components/schemas/RiskDetail'
+                      timestamps:
+                        $ref: '#/components/schemas/TimestampDetail'
+                      intelCard:
+                        type: string
+                        example: "https://app.recordedfuture.com/portal/intelligence-card/hash%3A44d88612fea8a8f36de82e1278abb02f"
+                      hashAlgorithm:
+                        type: string
+                        description: Hash algorithm — MD5, SHA-1, or SHA-256.
+                        example: "MD5"
+                      size:
+                        type: integer
+                        description: File size in bytes if known.
+                        example: 108358
+                      names:
+                        type: array
+                        description: File names this hash has been observed as. Key for identifying disguised malware.
+                        items:
+                          type: string
+                        example: ["eicar.com", "test.exe"]
+                      malwares:
+                        type: array
+                        description: Malware families associated with this hash.
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                              example: "Emotet"
+                            type:
+                              type: string
+                              example: "Malware"
+                      threatLists:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            description:
+                              type: string
+                      sightings:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            source:
+                              type: string
+                            published:
+                              type: string
+                            title:
+                              type: string
+                      analystNotes:
+                        type: array
+                        items:
+                          type: object
+        "404":
+          description: Hash not found in Recorded Future.
+        "401":
+          description: Unauthorized — invalid or missing X-RFToken.
+
+  /url/{value}:
+    get:
+      operationId: GetURLReputation
+      summary: Get Recorded Future threat intelligence for a URL
+      description: |
+        Retrieves threat intelligence for a given URL from Recorded Future,
+        including risk score, triggered rules, sightings, related entities,
+        threat lists, and analyst notes.
+
+        Use this operation when:
+        - The user provides a full URL and asks for its reputation or risk
+        - The user asks "is this URL malicious" or "look up this URL in Recorded Future"
+        - An incident or alert contains a URL to be enriched
+        - A phishing investigation requires URL attribution
+
+        Output format rules:
+        - Always display the risk score and criticalityLabel prominently
+        - List all triggered evidenceDetails rules with timestamps
+        - Show threatLists if any
+        - Show top 5 sightings with source, date, and title
+        - Always output the intelCard URL
+        - Note: for the URL's hosting domain reputation, run GetDomainReputation separately
+        - Never truncate analyst notes
+
+        #ExamplePrompts Check Recorded Future reputation for URL https://evil.com/payload.exe
+        #ExamplePrompts Look up this URL in Recorded Future: http://malicious-site.ru/phish
+        #ExamplePrompts Is this URL malicious according to Recorded Future
+        #ExamplePrompts GetURLReputation https://suspicious-site.com/page
+      parameters:
+        - name: value
+          in: path
+          required: true
+          description: >
+            Full URL to look up, including protocol (e.g. https://evil.com/path).
+            URL-encode the value if it contains special characters.
+          schema:
+            type: string
+          example: "https://evil.com/payload.exe"
+        - name: fields
+          in: query
+          required: false
+          description: Comma-separated list of fields to return.
+          schema:
+            type: string
+            enum:
+              - "risk,intelCard,timestamps,metrics,relatedEntities,threatLists,analystNotes,counts,entity,links,sightings,rawrisk"
+            default: "risk,intelCard,timestamps,metrics,relatedEntities,threatLists,analystNotes,counts,entity,links,sightings,rawrisk"
+      responses:
+        "200":
+          description: Threat intelligence data for the URL.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      entity:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            example: "url:https://evil.com/payload.exe"
+                          name:
+                            type: string
+                            example: "https://evil.com/payload.exe"
+                          type:
+                            type: string
+                            example: "URL"
+                      risk:
+                        $ref: '#/components/schemas/RiskDetail'
+                      timestamps:
+                        $ref: '#/components/schemas/TimestampDetail'
+                      intelCard:
+                        type: string
+                        example: "https://app.recordedfuture.com/portal/intelligence-card/url%3Ahttps%3A%2F%2Fevil.com%2Fpayload.exe"
+                      threatLists:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            description:
+                              type: string
+                      sightings:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            source:
+                              type: string
+                            published:
+                              type: string
+                            title:
+                              type: string
+                            url:
+                              type: string
+                      analystNotes:
+                        type: array
+                        items:
+                          type: object
+        "404":
+          description: URL not found in Recorded Future.
+        "401":
+          description: Unauthorized — invalid or missing X-RFToken.
