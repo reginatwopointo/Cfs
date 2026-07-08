@@ -1,0 +1,308 @@
+openapi: 3.0.3
+
+info:
+  title: VirusTotal File Hash Threat Intelligence
+  description: >
+    Enriches a file hash (MD5, SHA-1, or SHA-256) with multi-engine
+    threat-intelligence from the VirusTotal API v3. Returns the aggregate
+    detection verdict (last_analysis_stats), per-engine results, community
+    reputation and votes, popular threat classification (suggested label,
+    malware families and categories), observed file names, file metadata,
+    submission timestamps, and tags.
+  version: 1.0.0
+
+servers:
+  - url: https://www.virustotal.com/api/v3
+    description: VirusTotal API v3
+
+security:
+  - VTApiKey: []
+
+components:
+
+  securitySchemes:
+    VTApiKey:
+      type: apiKey
+      in: header
+      name: x-apikey
+      description: >
+        VirusTotal API key. Injected by Security Copilot from the plugin
+        manifest Authorization block. VirusTotal uses a raw key header with
+        NO scheme prefix — do NOT prepend 'Bearer'.
+
+  schemas:
+
+    LastAnalysisStats:
+      type: object
+      description: >
+        Aggregate count of engine verdicts. The headline triage signal:
+        malicious + suspicious relative to the total number of engines.
+      properties:
+        malicious:
+          type: integer
+          description: Number of engines flagging the file as malicious.
+          example: 58
+        suspicious:
+          type: integer
+          description: Number of engines flagging the file as suspicious.
+          example: 2
+        undetected:
+          type: integer
+          description: Number of engines that scanned but did not flag the file.
+          example: 12
+        harmless:
+          type: integer
+          description: Number of engines explicitly rating the file harmless.
+          example: 0
+        timeout:
+          type: integer
+          description: Number of engines that timed out.
+          example: 0
+        type-unsupported:
+          type: integer
+          description: Number of engines that do not support this file type.
+          example: 4
+
+    PopularThreatClassification:
+      type: object
+      description: VirusTotal's normalized malware family / category attribution.
+      properties:
+        suggested_threat_label:
+          type: string
+          description: Single best-guess normalized threat label.
+          example: "trojan.emotet/heur"
+        popular_threat_category:
+          type: array
+          description: Ranked malware categories with vote counts.
+          items:
+            type: object
+            properties:
+              count:
+                type: integer
+                example: 34
+              value:
+                type: string
+                example: "trojan"
+        popular_threat_name:
+          type: array
+          description: Ranked malware family names with vote counts.
+          items:
+            type: object
+            properties:
+              count:
+                type: integer
+                example: 21
+              value:
+                type: string
+                example: "emotet"
+
+    TotalVotes:
+      type: object
+      description: VirusTotal community reputation votes.
+      properties:
+        harmless:
+          type: integer
+          example: 3
+        malicious:
+          type: integer
+          example: 147
+
+paths:
+
+  /files/{id}:
+    get:
+      operationId: GetFileReport
+      summary: Get VirusTotal multi-engine threat intelligence for a file hash
+      description: |
+        Retrieves the VirusTotal report for a given file hash (MD5, SHA-1, or
+        SHA-256), including the aggregate multi-engine detection verdict,
+        per-engine results, community reputation and votes, popular threat
+        classification (suggested label, malware families and categories),
+        observed file names, file metadata (type, size, magic), submission
+        timestamps, and tags.
+
+        Use this operation when:
+        - The user provides a file hash and asks for its VirusTotal verdict,
+          detection ratio, or reputation
+        - The user asks "how many engines flag this hash" or "is this hash
+          malicious on VirusTotal"
+        - An incident or alert contains a file hash to be enriched
+        - Malware triage requires multi-engine corroboration or family attribution
+
+        Output format rules:
+        - Lead with the detection ratio: malicious / total engines
+          (total = malicious + suspicious + undetected + harmless + timeout +
+          type-unsupported), and the reputation score
+        - Show the popular_threat_classification suggested_threat_label
+          prominently, plus the top malware families and categories
+        - Show meaningful_name and up to the first 10 names — these reveal how
+          the file is disguised
+        - Show file metadata: type_description, size, magic
+        - Show first_submission_date, last_submission_date, last_analysis_date,
+          and times_submitted (Unix epoch seconds — convert to UTC)
+        - List notable engine hits from last_analysis_results (engines whose
+          category is "malicious" or "suspicious", with their result string)
+        - Show total_votes (community harmless vs malicious)
+        - Always output the direct VirusTotal GUI link:
+          https://www.virustotal.com/gui/file/{sha256}
+        - Never fabricate a verdict when the hash is not found (HTTP 404) —
+          state that VirusTotal has no record of the hash
+
+        #ExamplePrompts Check VirusTotal for hash 44d88612fea8a8f36de82e1278abb02f
+        #ExamplePrompts Look up SHA256 275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f on VirusTotal
+        #ExamplePrompts Is this file hash malicious on VirusTotal: 896ccf899b9d45c1c119ba35d6cce6e16cc10dd6a7f502f88fb50429a6e5cf4c
+        #ExamplePrompts GetFileReport 44d88612fea8a8f36de82e1278abb02f
+        #ExamplePrompts What is the VirusTotal detection ratio for 5d41402abc4b2a76b9719d911017c592
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: >
+            File hash to look up. Accepts MD5 (32 hex chars), SHA-1 (40 hex
+            chars), or SHA-256 (64 hex chars). Pass the raw hex string with no
+            prefix and no quotes. If the value is defanged, re-fang it first.
+          schema:
+            type: string
+          example: "44d88612fea8a8f36de82e1278abb02f"
+      responses:
+        "200":
+          description: VirusTotal report for the file hash.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        description: SHA-256 of the file (canonical VT object id).
+                        example: "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f"
+                      type:
+                        type: string
+                        example: "file"
+                      attributes:
+                        type: object
+                        properties:
+                          last_analysis_stats:
+                            $ref: '#/components/schemas/LastAnalysisStats'
+                          last_analysis_results:
+                            type: object
+                            description: >
+                              Per-engine results keyed by engine name. Each value
+                              has category (malicious/suspicious/undetected/harmless/
+                              type-unsupported/timeout/failure), engine_name,
+                              result (the detection name or null), method, and
+                              engine_version. Surface only the malicious/suspicious
+                              entries in output.
+                            additionalProperties:
+                              type: object
+                              properties:
+                                category:
+                                  type: string
+                                  example: "malicious"
+                                engine_name:
+                                  type: string
+                                  example: "Microsoft"
+                                result:
+                                  type: string
+                                  example: "Trojan:Win32/Emotet.PVS!MTB"
+                                method:
+                                  type: string
+                                  example: "blacklist"
+                                engine_version:
+                                  type: string
+                                  example: "1.1.24070.5"
+                          reputation:
+                            type: integer
+                            description: >
+                              Community reputation score. Negative indicates the
+                              community considers the file malicious.
+                            example: -142
+                          total_votes:
+                            $ref: '#/components/schemas/TotalVotes'
+                          popular_threat_classification:
+                            $ref: '#/components/schemas/PopularThreatClassification'
+                          meaningful_name:
+                            type: string
+                            description: VT's best single display name for the file.
+                            example: "invoice_scan.exe"
+                          names:
+                            type: array
+                            description: All file names this hash has been observed as. Key for spotting disguise.
+                            items:
+                              type: string
+                            example: ["invoice_scan.exe", "eicar.com", "update.dll"]
+                          type_description:
+                            type: string
+                            description: Human-readable file type.
+                            example: "Win32 EXE"
+                          type_tag:
+                            type: string
+                            example: "peexe"
+                          size:
+                            type: integer
+                            description: File size in bytes.
+                            example: 108358
+                          magic:
+                            type: string
+                            description: libmagic file type signature.
+                            example: "PE32 executable (GUI) Intel 80386, for MS Windows"
+                          md5:
+                            type: string
+                            example: "44d88612fea8a8f36de82e1278abb02f"
+                          sha1:
+                            type: string
+                            example: "3395856ce81f2b7382dee72602f798b642f14140"
+                          sha256:
+                            type: string
+                            example: "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f"
+                          ssdeep:
+                            type: string
+                            example: "1536:xxxxxxxxxx"
+                          tlsh:
+                            type: string
+                            example: "T1A2B3C4"
+                          first_submission_date:
+                            type: integer
+                            description: Unix epoch seconds of first submission to VT.
+                            example: 1525219200
+                          last_submission_date:
+                            type: integer
+                            description: Unix epoch seconds of most recent submission.
+                            example: 1747699200
+                          last_analysis_date:
+                            type: integer
+                            description: Unix epoch seconds of most recent analysis.
+                            example: 1747699200
+                          times_submitted:
+                            type: integer
+                            description: How many times the file has been submitted to VT.
+                            example: 4213
+                          tags:
+                            type: array
+                            description: VT tags (e.g. peexe, signed, cve, invalid-signature).
+                            items:
+                              type: string
+                            example: ["peexe", "detect-debug-environment", "checks-network-adapters"]
+                  error:
+                    type: object
+                    description: Present only on error responses instead of data.
+                    properties:
+                      code:
+                        type: string
+                        example: "NotFoundError"
+                      message:
+                        type: string
+                        example: "File \"<hash>\" not found"
+        "400":
+          description: Bad request — the hash is malformed (not a valid MD5/SHA-1/SHA-256).
+        "401":
+          description: Unauthorized — invalid or missing x-apikey.
+        "404":
+          description: Not found — VirusTotal has no record of this hash.
+        "429":
+          description: >
+            Quota exceeded — the API key hit its rate limit (public keys are
+            capped at 4 requests/minute, 500/day). Retry after the window resets.
