@@ -1,0 +1,269 @@
+openapi: 3.0.3
+
+info:
+  title: Splunk Mission Control - Update Incident
+  description: >
+    Updates an existing Mission Control incident (investigation) in Splunk
+    Enterprise Security by calling the Splunk Cloud management API directly.
+    Primary use is to set the incident's disposition and status — e.g. an
+    agent-proposed close disposition left in a Pending review state for a
+    human analyst to confirm. Optional fields (urgency, sensitivity, assignee)
+    are supported for reuse but are not required.
+  version: "1.0.0"
+
+servers:
+  - url: https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol
+    description: Splunk Cloud management API (port 8089), Mission Control base path
+
+security:
+  - ApiKeyAuth: []
+
+components:
+
+  securitySchemes:
+    # Aligned to the manifest Authorization Type: APIKey
+    # Token is injected as: Authorization: Bearer <token>
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: >
+        Splunk Cloud JWT Bearer token. Passed as:
+        Authorization: Bearer <jwt>
+
+  schemas:
+
+    UpdateIncidentRequest:
+      type: object
+      description: >
+        Flat (single-level) body. Send only the fields you want to change.
+        At least one field must be provided. disposition and status are the
+        two primary fields for this use case.
+      properties:
+        disposition:
+          type: string
+          description: >
+            The disposition CODE in the form "disposition:N" — NOT the human
+            label. Mission Control stores and matches on the code; the label is
+            display-only. Look codes up in disposition_lookup (status column =
+            code, label column = display string).
+            For the agent-determined-benign outcome use "disposition:15"
+            ("Closed - Security Copilot Determined Benign Positive").
+          example: "disposition:15"
+        status:
+          type: string
+          description: >
+            The review-status CODE from reviewstatuses_lookup (status column),
+            sent as a string. Known code: "3" = Pending. Setting status to "3"
+            leaves the incident in Pending so a human analyst can confirm the
+            agent-proposed disposition and flip it to Closed. NOTE: this field's
+            accepted form (numeric code vs the "Pending" label) should be
+            confirmed on the first live call; if the code is rejected, retry
+            with the label string "Pending".
+          example: "3"
+        urgency:
+          type: string
+          description: >
+            Optional. Urgency level. Accepts both lowercase and capitalised
+            values to match Splunk ES.
+          enum:
+            - informational
+            - low
+            - medium
+            - high
+            - critical
+            - Informational
+            - Low
+            - Medium
+            - High
+            - Critical
+          example: "low"
+        sensitivity:
+          type: string
+          description: Optional. Data sensitivity classification controlling MC visibility.
+          enum:
+            - Unassigned
+            - White
+            - Green
+            - Amber
+            - Red
+          example: "Unassigned"
+        assignee:
+          type: string
+          description: Optional. Username or email of the analyst to assign the incident to.
+          example: "regina.guzanova@avanade.com"
+        comment:
+          type: string
+          description: >
+            Optional. Free-text note recorded with the update — e.g. explaining
+            that the disposition was proposed by the Security Copilot triage
+            agent and is pending human confirmation.
+          example: "Disposition proposed by Security Copilot triage agent; left Pending for analyst confirmation."
+
+    UpdateIncidentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Internal GUID of the updated incident.
+          example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
+        display_id:
+          type: string
+          description: Human-readable ID in ES-XXXXX / MC-XXXXX format.
+          example: "ES-00142"
+        status:
+          type: string
+          description: Echo of the incident status after the update.
+          example: "3"
+        disposition:
+          type: string
+          description: Echo of the incident disposition code after the update.
+          example: "disposition:15"
+        urgency:
+          type: string
+          example: "low"
+        sensitivity:
+          type: string
+          example: "Unassigned"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-07-21T14:32:05Z"
+
+    ErrorResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [ERROR, WARN, FATAL]
+              text:
+                type: string
+
+paths:
+
+  /v1/incidents/{id}:
+    post:
+      operationId: UpdateIncident
+      summary: Update a Mission Control incident's disposition and/or status
+      description: |
+        Updates an existing Mission Control incident in Splunk Enterprise
+        Security. Send a flat JSON body containing only the fields to change;
+        disposition and status are the two primary fields.
+
+        Endpoint: POST /v1/incidents/{id}
+        Base path: /servicesNS/nobody/missioncontrol
+        Full URL example:
+        POST https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol/v1/incidents/8afcb116-632c-4f4f-bc35-9a7557b62c82
+        Body: { "disposition": "disposition:15", "status": "3" }
+
+        The id path parameter accepts either the incident GUID
+        (8afcb116-632c-4f4f-bc35-9a7557b62c82) or the display_id (ES-00142).
+
+        disposition MUST be the code form "disposition:N" (e.g. disposition:15),
+        never the human label. status is the review-status code from
+        reviewstatuses_lookup (3 = Pending). Use disposition:15 +
+        status 3 to record an agent-proposed benign close that a human analyst
+        will confirm and flip to Closed.
+
+        This is the same API version (v1) as notes and response plans. Do NOT
+        use public/v2/investigations for updates — that returns MC_0005.
+
+        After a successful call, ALWAYS present the incident id, the new
+        disposition, and the new status back to the analyst — never omit the
+        GUID or reduce the result to a vague summary.
+
+        #ExamplePrompts Update incident 8afcb116-632c-4f4f-bc35-9a7557b62c82 set disposition disposition:15 and status 3
+        #ExamplePrompts Set the disposition of this Mission Control investigation to disposition:15 and leave status Pending
+        #ExamplePrompts Mark MC investigation ES-00142 as Closed - Security Copilot Determined Benign Positive pending analyst confirmation
+        #ExamplePrompts Update the disposition and status of this incident
+        #ExamplePrompts Set incident 8afcb116-632c-4f4f-bc35-9a7557b62c82 disposition to disposition:15
+      tags:
+        - Mission Control Incidents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: >
+            The id (GUID) or display_id of the incident to update.
+            GUID format: 8afcb116-632c-4f4f-bc35-9a7557b62c82
+            Display ID format: ES-00142
+          schema:
+            type: string
+          example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateIncidentRequest'
+            examples:
+              propose_benign_close:
+                summary: Agent-proposed benign close, left Pending for human confirmation
+                value:
+                  disposition: "disposition:15"
+                  status: "3"
+              disposition_only:
+                summary: Set disposition only
+                value:
+                  disposition: "disposition:15"
+              reassign_and_prioritise:
+                summary: Optional reuse — reassign and change urgency
+                value:
+                  assignee: "regina.guzanova@avanade.com"
+                  urgency: "high"
+      responses:
+        '200':
+          description: Incident successfully updated. Returns the updated incident object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateIncidentResponse'
+        '400':
+          description: >
+            Bad request. Common causes: no updatable field supplied; disposition
+            sent as a label instead of the "disposition:N" code; status value not
+            recognised.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized. JWT token missing, expired, or malformed.
+        '403':
+          description: >
+            Forbidden. Token does not have permission to update incidents.
+            Requires ess_analyst role minimum.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: >
+            Not found. The incident id does not exist or is not accessible by
+            the authenticated user. (A wrong API version also surfaces here or
+            as MC_0005 — use v1/incidents, not public/v2/investigations.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error on the Splunk stack.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Mission Control Incidents
+    description: >
+      Updates existing Mission Control incidents in Splunk Enterprise Security
+      via the v1 endpoint POST /v1/incidents/{id} on base path
+      /servicesNS/nobody/missioncontrol. Requires APIKey auth with Bearer
+      scheme. disposition is the "disposition:N" code; status is the
+      reviewstatuses_lookup code (3 = Pending). The id path parameter accepts
+      GUID or ES-XXXXX display_id.
