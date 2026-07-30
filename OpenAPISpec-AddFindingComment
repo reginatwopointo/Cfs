@@ -1,131 +1,110 @@
 openapi: 3.0.3
 info:
-  title: Splunk Enterprise Security — Add Finding Comment (notable_update)
+  title: Splunk Enterprise Security — Add Finding Note (public/v2)
   description: >
-    Appends a comment (note) to one or more Splunk Enterprise Security
-    findings (notable events) via the core ES notable_update endpoint.
-    This does NOT create a Mission Control investigation — it writes the
-    comment directly onto the finding. Optionally can set status / disposition,
-    but for shadow-mode note-only use send ONLY ruleUIDs + comment.
+    Creates a note on a Splunk Enterprise Security 8 FINDING (or investigation)
+    via the official ES public/v2 findings-notes endpoint. Writes the note
+    directly onto the finding — does NOT require creating a Mission Control
+    investigation first.
 
-    IMPORTANT — this endpoint differs from the Mission Control (MC) plugins:
-      * BASE PATH is /services (core Splunk REST), NOT
-        /servicesNS/nobody/missioncontrol.
-      * BODY is application/x-www-form-urlencoded, NOT application/json.
-        The MC v1/v2 JSON body shape does NOT apply here.
+    Endpoint reference: ES 8.x API Reference > Findings >
+    "Create a note in a finding or investigation" (public_v2_create_note_in_investigation).
+
+    IMPORTANT — the finding composite id is SPLIT across two parameters:
+      * {id} PATH param   = the bare finding GUID (source_guid), NOT the
+        @@notable@@time composite.
+      * notable_time QUERY param = the finding _time (the epoch after "@@time"
+        in the composite, or ISO/relative time).
+      e.g. source_event_id 2694b8bf-...-7e61af8f4aad@@notable@@time1784674442
+           -> id = 2694b8bf-...-7e61af8f4aad
+           -> notable_time = 1784674442
   version: 1.0.0
 
 servers:
-  - url: https://es-dev-accenture.splunkcloud.com:8089
+  - url: https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol
 
 paths:
-  /services/notable_update:
+  /public/v2/investigations/{id}/notes:
     post:
-      operationId: AddFindingComment
-      summary: Add a comment to a Splunk ES finding (notable event)
+      operationId: AddFindingNote
+      summary: Create a note on an ES finding (or investigation)
       description: |
-        Adds a comment to one or more ES findings (notable events) identified by
-        their notable event_id, using the standard ES notable_update handler.
-        Use this to write Security Copilot analysis output directly onto a
-        finding WITHOUT opening a Mission Control investigation.
+        Creates a note (title + content) on an ES 8 finding or investigation,
+        identified by its GUID (or display_id) in the {id} path parameter. For a
+        FINDING, also pass notable_time (query) — the finding's _time — so ES can
+        locate the notable. Use this to write Security Copilot analysis directly
+        onto a finding WITHOUT opening a Mission Control investigation.
 
-        REQUEST ENCODING: application/x-www-form-urlencoded (form fields), NOT
-        JSON. Send output_mode=json (query) to receive a JSON response.
+        PATH PARAMETER:
+        - id: the finding/investigation GUID (source_guid) or display_id. This is
+          the BARE GUID only — do NOT append @@notable@@time...
+          e.g. 2694b8bf-2cb6-4e91-97d7-7e61af8f4aad
 
-        REQUIRED fields:
-        - ruleUIDs: a JSON-ARRAY-formatted STRING of one or more notable
-          event_id values. For a single finding this is a one-element array,
-          e.g. ["6f9c1a2b-...@@notable@@time1782438842"]. It MUST be sent as a
-          JSON array string (square brackets), mirroring the MC finding_ids
-          rule — a bare, unbracketed value is silently dropped and the comment
-          is not attached.
-        - comment: the full note body text to append to the finding.
+        QUERY PARAMETER:
+        - notable_time: the finding _time. Accepts epoch (1784674442), ISO
+          (2026-07-21T15:54:00Z), or relative (-30m). For a finding built from a
+          GUID@@notable@@time<epoch> composite, pass the <epoch> after "@@time".
+          Optional for investigations; SEND IT for findings.
 
-        OPTIONAL fields (OMIT for shadow-mode note-only writes):
-        - status: numeric ES review-status code (string), e.g. "5".
-        - disposition: disposition CODE in the form "disposition:N" (never the
-          label). Only send if intentionally dispositioning the finding.
-        - newOwner: reassign the finding owner (username).
-        - urgency: informational | low | medium | high | critical.
-
-        OPEN ITEM (confirm on first live call): whether ruleUIDs takes the
-        notable event_id or the source_event_id composite used elsewhere in the
-        pipeline. Extract BOTH from index=notable in the gather step so either
-        can be supplied.
+        BODY (application/json):
+        - title: short label for the note.
+        - content: full note body — paste the consolidated analysis here (required).
+        - files: optional array of file IDs.
+        - type: optional note type (sample shows "Task"). Omit for a plain
+          finding note unless a specific type is required.
 
         #ExamplePrompts
-        - Add a comment to finding 6f9c1a2b-...@@notable@@time1782438842 with the Security Copilot analysis.
-        - AddFindingComment ruleUIDs ["6f9c1a2b-...@@notable@@time1782438842"] comment "Consolidated triage analysis ..."
-        - Append this note to the ES notable without creating an investigation: [note text]
+        - Create a note on finding 2694b8bf-2cb6-4e91-97d7-7e61af8f4aad (notable_time 1784674442) with the Security Copilot analysis.
+        - AddFindingNote id 2694b8bf-... notable_time 1784674442 title "Triage Summary" content "..."
+        - Append this analysis to the ES finding without opening an investigation: [text]
       parameters:
-        - name: output_mode
-          in: query
+        - name: id
+          in: path
           required: true
-          description: Response format. Always json.
+          description: >
+            The finding/investigation GUID (source_guid) or display_id. BARE GUID
+            only — never the @@notable@@time composite.
           schema:
             type: string
-            enum: [json]
-            default: json
+            example: "2694b8bf-2cb6-4e91-97d7-7e61af8f4aad"
+        - name: notable_time
+          in: query
+          required: false
+          description: >
+            The finding _time (epoch, ISO, or relative). For findings, pass the
+            epoch after "@@time" in the source_event_id composite.
+          schema:
+            type: string
+            example: "1784674442"
       requestBody:
         required: true
+        description: Note to be created.
         content:
-          application/x-www-form-urlencoded:
+          application/json:
             schema:
-              type: object
-              required:
-                - ruleUIDs
-                - comment
-              properties:
-                ruleUIDs:
-                  type: string
-                  description: >
-                    JSON-array-formatted string of notable event_id(s).
-                    Single finding = one-element array. MUST include square
-                    brackets. Correct: ["6f9c1a2b-...@@notable@@time1782438842"].
-                    Incorrect: 6f9c1a2b-...@@notable@@time1782438842
-                  example: '["6f9c1a2b-150d-4c75-849d-7c5669755406@@notable@@time1782438842"]'
-                comment:
-                  type: string
-                  description: The full note body to append to the finding.
-                  example: "Consolidated triage analysis: curl download to /tmp assessed benign — corporate installer."
-                status:
-                  type: string
-                  description: >
-                    OPTIONAL numeric ES review-status code as a string. OMIT for
-                    note-only shadow-mode writes.
-                  example: "5"
-                disposition:
-                  type: string
-                  description: >
-                    OPTIONAL disposition CODE "disposition:N" (never the label).
-                    OMIT for note-only shadow-mode writes.
-                  example: "disposition:15"
-                newOwner:
-                  type: string
-                  description: OPTIONAL — reassign the finding owner (username).
-                urgency:
-                  type: string
-                  description: OPTIONAL — one of informational, low, medium, high, critical.
-                  enum:
-                    [informational, low, medium, high, critical,
-                     Informational, Low, Medium, High, Critical]
+              $ref: '#/components/schemas/CreateNotePayload'
+            example:
+              title: "Security Copilot — Consolidated Finding Analysis"
+              content: "Verdict: Benign Positive — corporate installer. ..."
       responses:
         '200':
-          description: notable_update processed the request. Inspect `success`.
+          description: Note created.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotableUpdateResponse'
+                $ref: '#/components/schemas/CreateNoteResponse'
+        '201':
+          description: Note created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateNoteResponse'
         '400':
-          description: Bad request (e.g. malformed ruleUIDs or missing comment).
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/NotableUpdateResponse'
+          description: Bad request (e.g. missing content, or wrong id/notable_time).
         '401':
-          description: Unauthorized (token missing/invalid or lacks edit_notable_events capability).
+          description: Unauthorized (token missing/invalid or insufficient capability).
         '404':
-          description: Endpoint not exposed on this stack — fall back to Logic App shim.
+          description: Finding/investigation not found for the supplied id + notable_time.
 
 components:
   securitySchemes:
@@ -136,17 +115,36 @@ components:
   security:
     - bearerAuth: []
   schemas:
-    NotableUpdateResponse:
+    CreateNotePayload:
+      type: object
+      required:
+        - content
+      properties:
+        title:
+          type: string
+          description: The title of the note.
+          example: "Create ticket - Note 1"
+        content:
+          type: string
+          description: The data stored within the note.
+          example: "Note Content for Create Ticket"
+        files:
+          type: array
+          description: An array of file IDs to add to the note.
+          items:
+            type: string
+          example:
+            - "22a2e62e186f4dc4b33edde666534b4622a2e62e186f4dc4b33edde666534b46"
+        type:
+          type: string
+          description: >
+            OPTIONAL note type (sample shows "Task"). Omit for a plain finding
+            note unless a specific type is required.
+          example: "Task"
+    CreateNoteResponse:
       type: object
       properties:
-        success:
-          type: boolean
-          description: True when the comment was applied to the finding(s).
-          example: true
-        message:
+        id:
           type: string
-          description: Human-readable result, e.g. "1 event updated successfully."
-          example: "1 event updated successfully."
-        details:
-          type: string
-          description: Optional additional detail returned by the handler.
+          description: The ID of the created note.
+          example: "189c4f74-ede9-4e71-a435-829a5e91e377"
