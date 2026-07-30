@@ -1,78 +1,79 @@
 openapi: 3.0.3
 info:
-  title: Splunk Enterprise Security — Add Finding Note (public/v2)
+  title: Splunk Enterprise Security — Add Finding Note (v1 investigations)
   description: >
     Creates a note on a Splunk Enterprise Security 8 FINDING (or investigation)
-    via the official ES public/v2 findings-notes endpoint. Writes the note
-    directly onto the finding — does NOT require creating a Mission Control
-    investigation first.
+    via the Mission Control connector operation v1_investigations_add_general_note.
+    Writes the note directly onto the finding — does NOT require creating a
+    Mission Control investigation first.
 
-    Endpoint reference: ES 8.x API Reference > Findings >
-    "Create a note in a finding or investigation" (public_v2_create_note_in_investigation).
+    Confirmed source: the built-in Mission Control SOAR connector (builtin_mc_connector)
+    registers this as:
+      operationId  v1_investigations_add_general_note
+      POST /v1/investigations/{id}/notes
+      "Add the note to the finding or investigation."
+    The working ES note-writing playbook feeds finding:finding_id into {id} and
+    sends only {id, content}.
 
-    IMPORTANT — the finding composite id is SPLIT across two parameters:
-      * {id} PATH param   = the bare finding GUID (source_guid), NOT the
-        @@notable@@time composite.
-      * notable_time QUERY param = the finding _time (the epoch after "@@time"
-        in the composite, or ISO/relative time).
-      e.g. source_event_id 2694b8bf-...-7e61af8f4aad@@notable@@time1784674442
-           -> id = 2694b8bf-...-7e61af8f4aad
-           -> notable_time = 1784674442
-  version: 1.0.0
+    KEY: {id} is the FINDING ID, passed as the FULL composite string
+    (GUID@@notable@@time<epoch>), a single value — NOT a bare GUID and NOT a
+    JSON array. e.g. 2694b8bf-...-7e61af8f4aad@@notable@@time1784674442
+  version: 2.0.0
 
 servers:
   - url: https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol
 
 paths:
-  /public/v2/investigations/{id}/notes:
+  /v1/investigations/{id}/notes:
     post:
       operationId: AddFindingNote
-      summary: Create a note on an ES finding (or investigation)
+      summary: Add a note to an ES finding (or investigation)
       description: |
-        Creates a note (title + content) on an ES 8 finding or investigation,
-        identified by its GUID (or display_id) in the {id} path parameter. For a
-        FINDING, also pass notable_time (query) — the finding's _time — so ES can
-        locate the notable. Use this to write Security Copilot analysis directly
-        onto a finding WITHOUT opening a Mission Control investigation.
+        Adds a note to an ES 8 finding or investigation, identified by {id}. Use
+        this to write Security Copilot analysis directly onto a finding WITHOUT
+        opening a Mission Control investigation. Mirrors the built-in MC connector
+        operation v1_investigations_add_general_note.
 
         PATH PARAMETER:
-        - id: the finding/investigation GUID (source_guid) or display_id. This is
-          the BARE GUID only — do NOT append @@notable@@time...
-          e.g. 2694b8bf-2cb6-4e91-97d7-7e61af8f4aad
-
-        QUERY PARAMETER:
-        - notable_time: the finding _time. Accepts epoch (1784674442), ISO
-          (2026-07-21T15:54:00Z), or relative (-30m). For a finding built from a
-          GUID@@notable@@time<epoch> composite, pass the <epoch> after "@@time".
-          Optional for investigations; SEND IT for findings.
+        - id: the FINDING ID (or investigation id/display_id). For a finding, this
+          is the FULL composite exactly as received — GUID@@notable@@time<epoch> —
+          passed as ONE string. Do NOT split it, do NOT strip the @@notable@@time
+          segment, and do NOT wrap it in a JSON array.
+          e.g. 2694b8bf-2cb6-4e91-97d7-7e61af8f4aad@@notable@@time1784674442
 
         BODY (application/json):
-        - title: short label for the note.
-        - content: full note body — paste the consolidated analysis here (required).
+        - content: full note body — paste the consolidated analysis here (REQUIRED).
+        - title: optional short label for the note.
+        - ai_generated: optional boolean; set true for Security Copilot notes.
         - files: optional array of file IDs.
-        - type: optional note type (sample shows "Task"). Omit for a plain
-          finding note unless a specific type is required.
+
+        QUERY PARAMETER:
+        - notable_time: optional. The finding _time (epoch/ISO/relative). The
+          composite {id} already carries the time, so this is normally NOT needed
+          (the reference playbook omits it). Include it only if a live test shows
+          the finding is not located without it.
 
         #ExamplePrompts
-        - Create a note on finding 2694b8bf-2cb6-4e91-97d7-7e61af8f4aad (notable_time 1784674442) with the Security Copilot analysis.
-        - AddFindingNote id 2694b8bf-... notable_time 1784674442 title "Triage Summary" content "..."
+        - Add a note to finding 2694b8bf-...@@notable@@time1784674442 with the Security Copilot analysis.
+        - AddFindingNote id 2694b8bf-...@@notable@@time1784674442 content "Consolidated triage analysis ..."
         - Append this analysis to the ES finding without opening an investigation: [text]
       parameters:
         - name: id
           in: path
           required: true
           description: >
-            The finding/investigation GUID (source_guid) or display_id. BARE GUID
-            only — never the @@notable@@time composite.
+            The finding ID (full composite GUID@@notable@@time<epoch>) or an
+            investigation id/display_id. Single string — never a JSON array.
           schema:
             type: string
-            example: "2694b8bf-2cb6-4e91-97d7-7e61af8f4aad"
+            example: "2694b8bf-2cb6-4e91-97d7-7e61af8f4aad@@notable@@time1784674442"
         - name: notable_time
           in: query
           required: false
           description: >
-            The finding _time (epoch, ISO, or relative). For findings, pass the
-            epoch after "@@time" in the source_event_id composite.
+            Optional. Finding _time (epoch/ISO/relative). Normally unnecessary
+            because {id} carries the time; include only if a finding is not
+            located without it.
           schema:
             type: string
             example: "1784674442"
@@ -86,6 +87,7 @@ paths:
             example:
               title: "Security Copilot — Consolidated Finding Analysis"
               content: "Verdict: Benign Positive — corporate installer. ..."
+              ai_generated: true
       responses:
         '200':
           description: Note created.
@@ -100,11 +102,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/CreateNoteResponse'
         '400':
-          description: Bad request (e.g. missing content, or wrong id/notable_time).
+          description: Bad request (e.g. missing content, or malformed id).
         '401':
-          description: Unauthorized (token missing/invalid or insufficient capability).
+          description: Unauthorized (token missing/invalid or insufficient MC capability).
         '404':
-          description: Finding/investigation not found for the supplied id + notable_time.
+          description: Finding/investigation not found for the supplied id.
 
 components:
   securitySchemes:
@@ -120,31 +122,40 @@ components:
       required:
         - content
       properties:
-        title:
-          type: string
-          description: The title of the note.
-          example: "Create ticket - Note 1"
         content:
           type: string
-          description: The data stored within the note.
+          description: The data stored within the note (the note body).
           example: "Note Content for Create Ticket"
+        title:
+          type: string
+          description: Optional title of the note.
+          example: "Create ticket - Note 1"
+        ai_generated:
+          type: boolean
+          description: Optional. Set true for Security Copilot / AI-authored notes.
+          example: true
         files:
           type: array
-          description: An array of file IDs to add to the note.
+          description: Optional array of file IDs to add to the note.
           items:
             type: string
           example:
             - "22a2e62e186f4dc4b33edde666534b4622a2e62e186f4dc4b33edde666534b46"
-        type:
-          type: string
-          description: >
-            OPTIONAL note type (sample shows "Task"). Omit for a plain finding
-            note unless a specific type is required.
-          example: "Task"
     CreateNoteResponse:
       type: object
       properties:
         id:
           type: string
           description: The ID of the created note.
-          example: "189c4f74-ede9-4e71-a435-829a5e91e377"
+          example: "2f34ab66-929e-438d-b294-7ce5ea5415d4"
+        incident_id:
+          type: string
+          description: The incident/investigation GUID the note is attached to.
+          example: "c80a092f-9dca-484b-8733-9c3162ee4ab9"
+        record_type:
+          type: string
+          description: Finding or Investigation.
+          example: "Investigation"
+        content:
+          type: string
+          example: "Note for task Create Ticket"
