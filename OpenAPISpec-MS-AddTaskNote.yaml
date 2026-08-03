@@ -93,6 +93,12 @@ paths:
                     output directly here. Plain text; Markdown is preserved by
                     the MC UI.
                   example: "Analysis complete. No C2 beaconing detected on host 10.1.2.3."
+                ai_generated:
+                  type: boolean
+                  description: >
+                    Optional. Set true for Security Copilot / AI-authored notes
+                    (provenance flag). Omit or set false for human-authored notes.
+                  example: true
 
       responses:
         "201":
