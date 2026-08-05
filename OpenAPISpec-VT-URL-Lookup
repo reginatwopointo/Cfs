@@ -1,0 +1,113 @@
+openapi: 3.0.3
+info:
+  title: VirusTotal v3 — URL Report Lookup (read-only)
+  description: >
+    Retrieves an EXISTING VirusTotal v3 URL analysis report via GET /urls/{id}.
+    READ-ONLY: this spec does NOT submit or scan URLs (no POST /urls). Per CIRT
+    IOC-handling policy for the "CIRT - TH - MacOS Infostealer related curl
+    download detection Rule", observed download URLs are looked up against
+    reports VirusTotal already holds — nothing about the URL is submitted to
+    VirusTotal's public corpus.
+
+    {id} is the VirusTotal URL identifier: the URL string base64url-encoded
+    (URL-safe alphabet) with the trailing '=' padding removed. VirusTotal also
+    accepts the SHA-256 of the URL string as {id}, but base64url is used here.
+
+    If VirusTotal has never seen the URL, GET /urls/{id} returns 404 NotFound.
+    That is an EXPECTED outcome (fresh infostealer URLs are common), not a
+    retryable error — report "no existing VirusTotal report" and do not fabricate
+    a verdict.
+  version: 1.0.0
+
+servers:
+  - url: https://www.virustotal.com/api/v3
+
+paths:
+  /urls/{id}:
+    get:
+      operationId: GetUrlReport
+      summary: Get an existing VirusTotal report for a URL (read-only)
+      description: |
+        Returns the existing VirusTotal v3 analysis report for a URL, identified
+        by {id}. Read-only: does NOT submit the URL for scanning. Use to enrich a
+        download/C2 URL observed in the MacOS curl infostealer detection with
+        multi-engine reputation VirusTotal already holds.
+
+        PATH PARAMETER:
+        - id: the VirusTotal URL identifier. Derive it from the observed URL as:
+            take the URL string exactly as received (re-fang if defanged, e.g.
+            hxxp -> http, [.] -> .) -> base64url-encode it (URL-safe alphabet)
+            -> strip any trailing '=' padding characters.
+          Pass the resulting string as {id}. Do NOT pass the raw URL. Do NOT
+          include quotes, whitespace, or a JSON array. This is a single string.
+
+        RESPONSE (key fields under data.attributes):
+        - last_analysis_stats: object of malicious / suspicious / harmless /
+          undetected / timeout counts — the aggregate verdict.
+        - last_analysis_results: per-engine verdicts.
+        - reputation, total_votes: community signal.
+        - categories: vendor URL categorizations.
+        - last_final_url: URL after redirects.
+        - threat_names, tags: threat classification.
+        - times_submitted, last_analysis_date, last_submission_date.
+
+        404 handling: a 404 means VirusTotal has no existing report for this URL
+        (never previously submitted/seen). Report this plainly as "No existing
+        VirusTotal report for the URL" — it is NOT a malicious/clean signal and
+        NOT an error to retry.
+
+        #ExamplePrompts GetUrlReport for the observed curl download URL
+        #ExamplePrompts Look up this URL's existing VirusTotal report
+        #ExamplePrompts Is there a VirusTotal verdict for the infostealer download URL
+        #ExamplePrompts Enrich the download URL with VirusTotal reputation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: >
+            VirusTotal URL identifier = base64url(URL) with '=' padding stripped.
+            One string, no quotes, no array.
+          schema:
+            type: string
+          example: "aHR0cDovL2V4YW1wbGUuY29tL3BheWxvYWQ"
+      responses:
+        "200":
+          description: Existing VirusTotal report for the URL.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      type:
+                        type: string
+                        example: "url"
+                      attributes:
+                        type: object
+                        properties:
+                          last_analysis_stats:
+                            type: object
+                          reputation:
+                            type: integer
+                          last_final_url:
+                            type: string
+                          categories:
+                            type: object
+                          threat_names:
+                            type: array
+                            items:
+                              type: string
+                          times_submitted:
+                            type: integer
+                          last_analysis_date:
+                            type: integer
+        "404":
+          description: >
+            No existing VirusTotal report for this URL (never seen/submitted).
+            Expected outcome — not an error.
+        "401":
+          description: Unauthorized — invalid or missing x-apikey header.
