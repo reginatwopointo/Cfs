@@ -1,0 +1,136 @@
+openapi: 3.0.3
+info:
+  title: Splunk Enterprise Security - Set Finding Disposition (v1 incidents)
+  description: >
+    Sets the review DISPOSITION on a Splunk Enterprise Security 8 FINDING (or
+    investigation) via the Mission Control REST API - WITHOUT creating a Mission
+    Control investigation. Mirrors the call the Mission Control UI fires when an
+    analyst changes the Disposition dropdown on a finding.
+
+    Confirmed from a captured browser request (HAR):
+      POST /v1/incidents/{id}?notable_time=<epoch>
+      body: {"disposition": "disposition:NN", "inherit_fields": false}
+      200 OK -> {"id": "<review-record-guid>"}
+
+    KEY: {id} is the FINDING ID, passed as the FULL composite string
+    (GUID@@notable@@time<epoch>), a single value - NOT a bare GUID and NOT a JSON
+    array. e.g. 8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748.
+    The disposition value is a CODE (disposition:NN), never the human label.
+  version: 1.0.0
+
+servers:
+  - url: https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol
+
+paths:
+  /v1/incidents/{id}:
+    post:
+      operationId: SetFindingDisposition
+      summary: Set the disposition on an ES finding (or investigation)
+      description: |
+        Sets the review disposition on an ES 8 finding or investigation,
+        identified by {id}, WITHOUT opening a Mission Control investigation. This
+        is the same review-update endpoint the Mission Control UI calls when the
+        Disposition dropdown is changed.
+
+        PATH PARAMETER:
+        - id: the FINDING ID (or investigation id/display_id). For a finding, this
+          is the FULL composite exactly as received - GUID@@notable@@time<epoch> -
+          passed as ONE string. Do NOT split it, do NOT strip the @@notable@@time
+          segment, and do NOT wrap it in a JSON array.
+          e.g. 8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748
+
+        QUERY PARAMETER:
+        - notable_time: REQUIRED for findings. The finding _time as an epoch,
+          extracted from the "@@time<epoch>" segment of the composite id (e.g.
+          1786393748). Omitting it fails the update on a finding.
+
+        BODY (application/json):
+        - disposition: the disposition CODE (REQUIRED), e.g. disposition:16. This
+          is the code from disposition_lookup, NEVER the human label. The Security
+          Copilot-attributed codes are disposition:16 (SC True Positive) and
+          disposition:15 (SC Benign Positive).
+        - inherit_fields: optional boolean; send false so a finding-level
+          disposition does not propagate to a parent investigation.
+
+        #ExamplePrompts
+        - SetFindingDisposition id 8b7b3093-...@@notable@@time1786393748 disposition disposition:16
+        - Set the disposition of finding 8b7b3093-...@@notable@@time1786393748 to disposition:15
+        - Mark this finding as Security Copilot True Positive (disposition:16).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: >
+            The finding ID (full composite GUID@@notable@@time<epoch>) or an
+            investigation id/display_id. Single string - never a JSON array.
+          schema:
+            type: string
+            example: "8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748"
+        - name: notable_time
+          in: query
+          required: true
+          description: >
+            REQUIRED for findings. The finding _time as an epoch, extracted from
+            the "@@time<epoch>" segment of the composite id. For
+            8b7b3093-...@@notable@@time1786393748 pass 1786393748.
+          schema:
+            type: string
+            example: "1786393748"
+      requestBody:
+        required: true
+        description: The disposition to set.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetDispositionPayload'
+            example:
+              disposition: "disposition:16"
+              inherit_fields: false
+      responses:
+        '200':
+          description: Disposition set. Returns the review record id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetDispositionResponse'
+        '400':
+          description: Bad request (e.g. missing notable_time, missing disposition, or malformed id).
+        '401':
+          description: Unauthorized (token missing/invalid or insufficient MC capability).
+        '404':
+          description: Finding/investigation not found for the supplied id.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+  security:
+    - bearerAuth: []
+  schemas:
+    SetDispositionPayload:
+      type: object
+      required:
+        - disposition
+      properties:
+        disposition:
+          type: string
+          description: >
+            The disposition CODE from disposition_lookup (never the label), e.g.
+            disposition:16. Security Copilot codes: disposition:16 (SC True
+            Positive), disposition:15 (SC Benign Positive).
+          example: "disposition:16"
+        inherit_fields:
+          type: boolean
+          description: >
+            Optional. Send false so a finding-level disposition change does not
+            propagate to a parent investigation.
+          example: false
+    SetDispositionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The ID of the review/update record created.
+          example: "d086c7f1-2b4f-439a-a1ca-a775bf572d74"
