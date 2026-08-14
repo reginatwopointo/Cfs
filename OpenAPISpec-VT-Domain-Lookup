@@ -1,0 +1,56 @@
+openapi: 3.0.1
+info:
+  title: VirusTotal Domain Report
+  description: Retrieve VirusTotal API v3 domain reputation and context for a hostname or registrable domain.
+  version: 1.0.0
+servers:
+  - url: https://www.virustotal.com/api/v3
+paths:
+  /domains/{domain}:
+    get:
+      operationId: GetDomainReport
+      summary: Get the VirusTotal v3 domain report for a hostname or registrable domain.
+      description: >
+        Returns VirusTotal's aggregate domain reputation and context for the given host:
+        last_analysis_stats (malicious / suspicious / harmless / undetected / timeout engine
+        counts), the community reputation score, assigned categories, popularity ranks, and any
+        crowdsourced context. Use this to judge whether the DESTINATION HOST of a download is
+        trusted or suspicious. This is the primary host-reputation signal and has broad coverage
+        for known hosts, unlike the exact-URL report which returns 404 for unseen deep URLs.
+        Pass the BARE host only - no scheme, no path, no port, no query (e.g. www.linkedin.com),
+        NOT a full URL. A 404 means VirusTotal has no report for the host and MUST be treated as
+        NEUTRAL, not as benign confirmation.
+        #ExamplePrompts
+        GetDomainReport domain www.linkedin.com
+        GetDomainReport for orangecountyfulfillment.com
+        Look up the VirusTotal reputation of the domain github.com
+        Is the domain example.com malicious on VirusTotal
+      parameters:
+        - name: domain
+          in: path
+          required: true
+          description: >
+            The bare hostname or registrable domain with no scheme, path, port, or query.
+            Example - www.linkedin.com. To derive it from a full URL, take only the authority
+            (host) portion.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Domain report retrieved successfully. Read data.attributes for last_analysis_stats, reputation, categories, and popularity_ranks.
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: VirusTotal has no report for this domain. Treat as NEUTRAL (not benign, not malicious).
+        '429':
+          description: VirusTotal rate limit exceeded (public API - 4 requests/minute).
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-apikey
+security:
+  - ApiKeyAuth: []
