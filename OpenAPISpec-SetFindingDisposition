@@ -5,10 +5,11 @@ info:
     Sets the review DISPOSITION on a Splunk Enterprise Security 8 FINDING (or
     investigation) via the Mission Control REST API - WITHOUT creating a Mission
     Control investigation. Mirrors the call the Mission Control UI fires when an
-    analyst changes the Disposition dropdown on a finding.
+    analyst changes the Disposition dropdown on a finding, and the same endpoint
+    as the working UpdateIncident plugin.
 
     Confirmed from a captured browser request (HAR):
-      POST /v1/incidents/{id}?notable_time=<epoch>
+      POST /v1/incidents/{id}
       body: {"disposition": "disposition:NN", "inherit_fields": false}
       200 OK -> {"id": "<review-record-guid>"}
 
@@ -16,10 +17,14 @@ info:
     (GUID@@notable@@time<epoch>), a single value - NOT a bare GUID and NOT a JSON
     array. e.g. 8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748.
     The disposition value is a CODE (disposition:NN), never the human label.
-  version: 1.0.0
+  version: "1.0.1"
 
 servers:
   - url: https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol
+    description: Splunk Cloud management API (port 8089), Mission Control base path
+
+security:
+  - bearerAuth: []
 
 paths:
   /v1/incidents/{id}:
@@ -30,7 +35,7 @@ paths:
         Sets the review disposition on an ES 8 finding or investigation,
         identified by {id}, WITHOUT opening a Mission Control investigation. This
         is the same review-update endpoint the Mission Control UI calls when the
-        Disposition dropdown is changed.
+        Disposition dropdown is changed (and the same endpoint as UpdateIncident).
 
         PATH PARAMETER:
         - id: the FINDING ID (or investigation id/display_id). For a finding, this
@@ -38,11 +43,6 @@ paths:
           passed as ONE string. Do NOT split it, do NOT strip the @@notable@@time
           segment, and do NOT wrap it in a JSON array.
           e.g. 8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748
-
-        QUERY PARAMETER:
-        - notable_time: REQUIRED for findings. The finding _time as an epoch,
-          extracted from the "@@time<epoch>" segment of the composite id (e.g.
-          1786393748). Omitting it fails the update on a finding.
 
         BODY (application/json):
         - disposition: the disposition CODE (REQUIRED), e.g. disposition:16. This
@@ -66,16 +66,6 @@ paths:
           schema:
             type: string
             example: "8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748"
-        - name: notable_time
-          in: query
-          required: true
-          description: >
-            REQUIRED for findings. The finding _time as an epoch, extracted from
-            the "@@time<epoch>" segment of the composite id. For
-            8b7b3093-...@@notable@@time1786393748 pass 1786393748.
-          schema:
-            type: string
-            example: "1786393748"
       requestBody:
         required: true
         description: The disposition to set.
@@ -94,7 +84,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SetDispositionResponse'
         '400':
-          description: Bad request (e.g. missing notable_time, missing disposition, or malformed id).
+          description: Bad request (e.g. missing disposition, or malformed id).
         '401':
           description: Unauthorized (token missing/invalid or insufficient MC capability).
         '404':
@@ -106,8 +96,6 @@ components:
       type: apiKey
       in: header
       name: Authorization
-  security:
-    - bearerAuth: []
   schemas:
     SetDispositionPayload:
       type: object
