@@ -15,9 +15,6 @@ servers:
   - url: https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol
     description: Splunk Cloud management API (port 8089), Mission Control base path
 
-security:
-  - ApiKeyAuth: []
-
 components:
 
   securitySchemes:
@@ -30,6 +27,10 @@ components:
       description: >
         Splunk Cloud JWT Bearer token. Passed as:
         Authorization: Bearer <jwt>
+
+  # security requirement nested under components (Security Copilot honors it here, not at root)
+  security:
+    - ApiKeyAuth: []
 
   schemas:
 
