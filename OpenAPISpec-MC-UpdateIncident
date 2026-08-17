@@ -3,13 +3,13 @@ openapi: 3.0.3
 info:
   title: Splunk Mission Control - Update Incident
   description: >
-    Updates an existing Mission Control incident (investigation) in Splunk
-    Enterprise Security by calling the Splunk Cloud management API directly.
-    Primary use is to set the incident's disposition and status — e.g. an
-    agent-proposed close disposition left in a Pending review state for a
-    human analyst to confirm. Optional fields (urgency, sensitivity, assignee)
-    are supported for reuse but are not required.
-  version: "1.0.0"
+    Updates an existing Mission Control incident (investigation) or ES finding
+    in Splunk Enterprise Security by calling the Splunk Cloud management API
+    directly. Primary use is to set the DISPOSITION on a finding — disposition
+    ONLY; status and every other field are left unchanged. Optional fields
+    (urgency, sensitivity, assignee) exist for reuse but are NOT used by the
+    CIRT finding-disposition flow.
+  version: "1.1.0"
 
 servers:
   - url: https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol
@@ -37,9 +37,9 @@ components:
     UpdateIncidentRequest:
       type: object
       description: >
-        Flat (single-level) body. Send only the fields you want to change.
-        At least one field must be provided. disposition and status are the
-        two primary fields for this use case.
+        Flat (single-level) body. Send ONLY the disposition field. Do NOT send
+        status or any other attribute — status and all other fields MUST be
+        left unchanged. disposition is the single field used here.
       properties:
         disposition:
           type: string
@@ -50,18 +50,7 @@ components:
             code, label column = display string).
             For the agent-determined-benign outcome use "disposition:15"
             ("Closed - Security Copilot Determined Benign Positive").
-          example: "disposition:15"
-        status:
-          type: string
-          description: >
-            The review-status CODE from reviewstatuses_lookup (status column),
-            sent as a string. Known code: "3" = Pending. Setting status to "3"
-            leaves the incident in Pending so a human analyst can confirm the
-            agent-proposed disposition and flip it to Closed. NOTE: this field's
-            accepted form (numeric code vs the "Pending" label) should be
-            confirmed on the first live call; if the code is rejected, retry
-            with the label string "Pending".
-          example: "3"
+          example: "disposition:16"
         urgency:
           type: string
           description: >
@@ -159,30 +148,31 @@ paths:
         Endpoint: POST /v1/incidents/{id}
         Base path: /servicesNS/nobody/missioncontrol
         Full URL example:
-        POST https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol/v1/incidents/8afcb116-632c-4f4f-bc35-9a7557b62c82
-        Body: { "disposition": "disposition:15", "status": "3" }
+        POST https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol/v1/incidents/8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748
+        Body: { "disposition": "disposition:16" }
 
-        The id path parameter accepts either the incident GUID
-        (8afcb116-632c-4f4f-bc35-9a7557b62c82) or the display_id (ES-00142).
+        The id path parameter accepts the ES FINDING composite
+        (GUID@@notable@@time<epoch>, passed as ONE string), an incident GUID,
+        or the display_id (ES-00142). For a CIRT finding, pass the full
+        composite exactly as received.
 
-        disposition MUST be the code form "disposition:N" (e.g. disposition:15),
-        never the human label. status is the review-status code from
-        reviewstatuses_lookup (3 = Pending). Use disposition:15 +
-        status 3 to record an agent-proposed benign close that a human analyst
-        will confirm and flip to Closed.
+        disposition MUST be the code form "disposition:N" (e.g. disposition:16),
+        never the human label. Send disposition ONLY. Do NOT send status — the
+        finding's status (and every other field) MUST be left unchanged. There
+        is no benign-close-to-Pending workflow here: set the
+        Security-Copilot-attributed disposition and nothing else.
 
         This is the same API version (v1) as notes and response plans. Do NOT
         use public/v2/investigations for updates — that returns MC_0005.
 
-        After a successful call, ALWAYS present the incident id, the new
-        disposition, and the new status back to the analyst — never omit the
-        GUID or reduce the result to a vague summary.
+        After a successful call, ALWAYS present the id and the new disposition
+        back to the analyst — never omit the GUID or reduce the result to a
+        vague summary.
 
-        #ExamplePrompts Update incident 8afcb116-632c-4f4f-bc35-9a7557b62c82 set disposition disposition:15 and status 3
-        #ExamplePrompts Set the disposition of this Mission Control investigation to disposition:15 and leave status Pending
-        #ExamplePrompts Mark MC investigation ES-00142 as Closed - Security Copilot Determined Benign Positive pending analyst confirmation
-        #ExamplePrompts Update the disposition and status of this incident
-        #ExamplePrompts Set incident 8afcb116-632c-4f4f-bc35-9a7557b62c82 disposition to disposition:15
+        #ExamplePrompts Set the disposition of finding 8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748 to disposition:16
+        #ExamplePrompts Mark this finding as Security Copilot Determined True Positive (disposition:16)
+        #ExamplePrompts Set disposition disposition:15 on finding 8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748
+        #ExamplePrompts Update the disposition of this finding, leave status unchanged
       tags:
         - Mission Control Incidents
       parameters:
@@ -203,20 +193,14 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateIncidentRequest'
             examples:
-              propose_benign_close:
-                summary: Agent-proposed benign close, left Pending for human confirmation
+              set_true_positive:
+                summary: Set SC True Positive disposition on a finding (disposition only)
+                value:
+                  disposition: "disposition:16"
+              set_benign_positive:
+                summary: Set SC Benign Positive disposition on a finding (disposition only)
                 value:
                   disposition: "disposition:15"
-                  status: "3"
-              disposition_only:
-                summary: Set disposition only
-                value:
-                  disposition: "disposition:15"
-              reassign_and_prioritise:
-                summary: Optional reuse — reassign and change urgency
-                value:
-                  assignee: "regina.guzanova@avanade.com"
-                  urgency: "high"
       responses:
         '200':
           description: Incident successfully updated. Returns the updated incident object.
@@ -226,9 +210,8 @@ paths:
                 $ref: '#/components/schemas/UpdateIncidentResponse'
         '400':
           description: >
-            Bad request. Common causes: no updatable field supplied; disposition
-            sent as a label instead of the "disposition:N" code; status value not
-            recognised.
+            Bad request. Common causes: no disposition supplied, or disposition
+            sent as a label instead of the "disposition:N" code.
           content:
             application/json:
               schema:
@@ -265,6 +248,6 @@ tags:
       Updates existing Mission Control incidents in Splunk Enterprise Security
       via the v1 endpoint POST /v1/incidents/{id} on base path
       /servicesNS/nobody/missioncontrol. Requires APIKey auth with Bearer
-      scheme. disposition is the "disposition:N" code; status is the
-      reviewstatuses_lookup code (3 = Pending). The id path parameter accepts
-      GUID or ES-XXXXX display_id.
+      scheme. Sends disposition ONLY (the "disposition:N" code); status and all
+      other fields are left unchanged. The id path parameter accepts the finding
+      composite, a GUID, or an ES-XXXXX display_id.
