@@ -7,7 +7,7 @@ info:
     analyst changes the Disposition dropdown on a finding (captured from a browser
     HAR):
       POST /v1/incidents/{id}
-      body: {"disposition": "disposition:NN", "inherit_fields": false}
+      body: {"disposition": "disposition:NN"}
     (The MC UI also appends ?notable_time=<epoch>, but the working standalone
     UpdateIncident plugin sets dispositions on this same endpoint WITHOUT it and
     still returns 200 — so this plugin omits the query param entirely to stay
@@ -23,14 +23,11 @@ info:
     array. e.g. 8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748
 
     CONTENT-TYPE NOTE: the UI HAR labels the request
-    application/x-www-form-urlencoded, but the body bytes (content-length 55) are
-    exactly the JSON payload {"disposition":"disposition:15","inherit_fields":false}
-    (55 bytes; a form-encoded body would be ~47-49) — i.e. a browser mislabel. The
-    MC handler accepts JSON, and the working standalone UpdateIncident plugin
-    confirmed application/json returns 200. This spec therefore sends
-    application/json. If a live 415 ever appears, switch the requestBody content
-    key to application/x-www-form-urlencoded.
-  version: 1.1.0
+    application/x-www-form-urlencoded, but the working UpdateIncident plugin sets
+    dispositions on this same endpoint with application/json and returns 200, so
+    this spec sends application/json. If a live 415 ever appears, switch the
+    requestBody content key to application/x-www-form-urlencoded.
+  version: 1.2.0
 
 servers:
   - url: https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol
@@ -60,9 +57,6 @@ paths:
           Positive). Send disposition ONLY — do NOT send status, urgency,
           sensitivity, assignee, or any other field; status and all other fields
           are left unchanged.
-        - inherit_fields: optional boolean; send false so a finding-level
-          disposition does not propagate to a parent investigation. (Present in the
-          UI HAR body.)
 
         #ExamplePrompts
         - AddFindingDisposition id 8b7b3093-...@@notable@@time1786393748 disposition disposition:16
@@ -87,7 +81,6 @@ paths:
               $ref: '#/components/schemas/SetDispositionPayload'
             example:
               disposition: "disposition:16"
-              inherit_fields: false
       responses:
         '200':
           description: Disposition set. Returns the review record id.
@@ -113,8 +106,9 @@ components:
   schemas:
     SetDispositionPayload:
       type: object
-      required:
-        - disposition
+      description: >
+        Flat (single-level) body. Send ONLY the disposition field. disposition is
+        the single field used here.
       properties:
         disposition:
           type: string
@@ -123,12 +117,6 @@ components:
             disposition:16. Security Copilot codes: disposition:16 (SC True
             Positive), disposition:15 (SC Benign Positive).
           example: "disposition:16"
-        inherit_fields:
-          type: boolean
-          description: >
-            Optional. Send false so a finding-level disposition change does not
-            propagate to a parent investigation.
-          example: false
     SetDispositionResponse:
       type: object
       properties:
