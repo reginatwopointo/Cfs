@@ -6,7 +6,7 @@ info:
     Mission Control REST API — the exact call the Mission Control UI fires when an
     analyst changes the Disposition dropdown on a finding (captured from a browser
     HAR):
-      POST /v1/incidents/{id}
+      POST /v1/investigations/{id}
       body: {"disposition": "disposition:NN"}
     (The MC UI also appends ?notable_time=<epoch>, but the working standalone
     UpdateIncident plugin sets dispositions on this same endpoint WITHOUT it and
@@ -33,7 +33,7 @@ servers:
   - url: https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol
 
 paths:
-  /v1/incidents/{id}:
+  /v1/investigations/{id}:
     post:
       operationId: AddFindingDisposition
       summary: Set the disposition on an ES finding (HAR-verified UI call)
