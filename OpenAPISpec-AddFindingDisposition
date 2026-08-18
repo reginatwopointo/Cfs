@@ -43,8 +43,8 @@ paths:
       description: |
         Sets the review disposition on an ES 8 finding, identified by {id}, WITHOUT
         opening a Mission Control investigation. This is the same review-update call
-        the Mission Control UI fires when the Disposition dropdown is changed:
-        POST /v1/incidents/{id}.
+        the Mission Control UI fires when the Disposition dropdown is changed
+        (HAR-verified): POST /v1/incidents/{id}?notable_time=<epoch>.
 
         PATH PARAMETER:
         - id: the FINDING ID (or investigation id/display_id). For a finding, this
@@ -77,4 +77,62 @@ paths:
             investigation id/display_id. Single string — never a JSON array.
           schema:
             type: string
-            example: "8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@n
+            example: "8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748"
+      requestBody:
+        required: true
+        description: The disposition to set (JSON body; see CONTENT-TYPE NOTE in info.description).
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetDispositionPayload'
+            example:
+              disposition: "disposition:16"
+              inherit_fields: false
+      responses:
+        '200':
+          description: Disposition set. Returns the review record id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetDispositionResponse'
+        '400':
+          description: Bad request (e.g. missing notable_time, missing disposition, or malformed id).
+        '401':
+          description: Unauthorized (token missing/invalid or insufficient MC capability).
+        '404':
+          description: Finding/investigation not found for the supplied id.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+  security:
+    - bearerAuth: []
+  schemas:
+    SetDispositionPayload:
+      type: object
+      required:
+        - disposition
+      properties:
+        disposition:
+          type: string
+          description: >
+            The disposition CODE from disposition_lookup (never the label), e.g.
+            disposition:16. Security Copilot codes: disposition:16 (SC True
+            Positive), disposition:15 (SC Benign Positive).
+          example: "disposition:16"
+        inherit_fields:
+          type: boolean
+          description: >
+            Optional. Send false so a finding-level disposition change does not
+            propagate to a parent investigation.
+          example: false
+    SetDispositionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The ID of the review/update record created.
+          example: "d086c7f1-2b4f-439a-a1ca-a775bf572d74"
