@@ -9,7 +9,7 @@ info:
     ONLY; status and every other field are left unchanged. Optional fields
     (urgency, sensitivity, assignee) exist for reuse but are NOT used by the
     CIRT finding-disposition flow.
-  version: "1.1.0"
+  version: "1.2.0"
 
 servers:
   - url: https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol
@@ -18,19 +18,12 @@ servers:
 components:
 
   securitySchemes:
-    # Aligned to the manifest Authorization Type: APIKey
-    # Token is injected as: Authorization: Bearer <token>
-    ApiKeyAuth:
+    bearerAuth:
       type: apiKey
       in: header
       name: Authorization
-      description: >
-        Splunk Cloud JWT Bearer token. Passed as:
-        Authorization: Bearer <jwt>
-
-  # security requirement nested under components (Security Copilot honors it here, not at root)
   security:
-    - ApiKeyAuth: []
+    - bearerAuth: []
 
   schemas:
 
@@ -139,11 +132,11 @@ paths:
   /v1/incidents/{id}:
     post:
       operationId: UpdateIncident
-      summary: Update a Mission Control incident's disposition and/or status
+      summary: Set the disposition on an ES finding or MC incident (disposition only)
       description: |
-        Updates an existing Mission Control incident in Splunk Enterprise
-        Security. Send a flat JSON body containing only the fields to change;
-        disposition and status are the two primary fields.
+        Sets the DISPOSITION on an existing Splunk ES finding (or MC incident).
+        Send a flat JSON body containing ONLY the disposition field; status and
+        every other field are left unchanged.
 
         Endpoint: POST /v1/incidents/{id}
         Base path: /servicesNS/nobody/missioncontrol
