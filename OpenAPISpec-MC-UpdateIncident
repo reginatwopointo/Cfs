@@ -129,7 +129,7 @@ components:
 
 paths:
 
-  /v1/incidents/{id}:
+  /v1/investigations/{id}:
     post:
       operationId: UpdateIncident
       summary: Set the disposition on an ES finding or MC incident (disposition only)
@@ -138,7 +138,7 @@ paths:
         Send a flat JSON body containing ONLY the disposition field; status and
         every other field are left unchanged.
 
-        Endpoint: POST /v1/incidents/{id}
+        Endpoint: POST /v1/investigations/{id}
         Base path: /servicesNS/nobody/missioncontrol
         Full URL example:
         POST https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol/v1/incidents/8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748
