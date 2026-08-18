@@ -26,7 +26,7 @@ info:
     confirmed application/json returns 200. This spec therefore sends
     application/json. If a live 415 ever appears, switch the requestBody content
     key to application/x-www-form-urlencoded.
-  version: 1.0.0
+  version: 1.0.1
 
 servers:
   - url: https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol
@@ -49,10 +49,11 @@ paths:
           segment, and do NOT wrap it in a JSON array.
           e.g. 8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748
 
-        QUERY PARAMETER:
-        - notable_time: REQUIRED for findings. The finding _time as epoch,
-          extracted from the "@@time<epoch>" segment of the composite id (e.g.
-          1786393748). Omitting it fails the update on a finding.
+        QUERY PARAMETER (optional):
+        - notable_time: Optional. The finding _time as epoch, extracted from the
+          "@@time<epoch>" segment of the composite id (e.g. 1786393748). Include it
+          when available; some findings need it server-side, but it is NOT required
+          by this plugin so the request can dispatch without it.
 
         BODY (application/json):
         - disposition: the disposition CODE (REQUIRED), e.g. disposition:16 — the
@@ -81,11 +82,12 @@ paths:
             example: "8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748"
         - name: notable_time
           in: query
-          required: true
+          required: false
           description: >
-            REQUIRED for findings. The finding _time as an epoch, extracted from
-            the "@@time<epoch>" segment of the composite id. For
-            8b7b3093-...@@notable@@time1786393748 pass 1786393748.
+            Optional. The finding _time as an epoch, extracted from the
+            "@@time<epoch>" segment of the composite id. For
+            8b7b3093-...@@notable@@time1786393748 pass 1786393748. Include when
+            available; not enforced by this plugin.
           schema:
             type: string
             example: "1786393748"
@@ -107,7 +109,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SetDispositionResponse'
         '400':
-          description: Bad request (e.g. missing notable_time, missing disposition, or malformed id).
+          description: Bad request (e.g. missing disposition, or malformed id).
         '401':
           description: Unauthorized (token missing/invalid or insufficient MC capability).
         '404':
