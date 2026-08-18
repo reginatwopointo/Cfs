@@ -1,59 +1,73 @@
 openapi: 3.0.3
 info:
-  title: Splunk Enterprise Security — Set Finding Disposition (v1 investigations)
+  title: Splunk Enterprise Security — Set Finding Disposition (v1 incidents, HAR-verified)
   description: >
-    Sets the review DISPOSITION on a Splunk Enterprise Security 8 FINDING (or
-    investigation) via the Mission Control v1/investigations namespace — the SAME
-    namespace and structure AddFindingNote uses (POST /v1/investigations/{id}/notes),
-    but writing a disposition instead of a note. Does NOT create a Mission Control
-    investigation. Disposition ONLY — status and every other field are left
-    unchanged.
+    Sets the review DISPOSITION on a Splunk Enterprise Security 8 FINDING via the
+    Mission Control REST API — the exact call the Mission Control UI fires when an
+    analyst changes the Disposition dropdown on a finding (captured from a browser
+    HAR):
+      POST /v1/incidents/{id}?notable_time=<epoch>
+      body: {"disposition": "disposition:NN", "inherit_fields": false}
+    Does NOT create a Mission Control investigation. Disposition ONLY — status and
+    every other field are left unchanged.
+
+    Self-authed plugin (its manifest carries its own Bearer token); intended to be
+    pulled into an agent via RequiredSkillSets, NOT inlined as an agent SkillGroup.
 
     KEY: {id} is the FINDING ID, passed as the FULL composite string
-    (GUID@@notable@@time<epoch>), a single value — NOT a bare GUID and NOT a
-    JSON array. e.g. 2694b8bf-2cb6-4e91-97d7-7e61af8f4aad@@notable@@time1784674442
+    (GUID@@notable@@time<epoch>), a single value — NOT a bare GUID and NOT a JSON
+    array. e.g. 8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748
+
+    CONTENT-TYPE NOTE: the UI HAR labels the request
+    application/x-www-form-urlencoded, but the body bytes (content-length 55) are
+    exactly the JSON payload {"disposition":"disposition:15","inherit_fields":false}
+    (55 bytes; a form-encoded body would be ~47-49) — i.e. a browser mislabel. The
+    MC handler accepts JSON, and the working standalone UpdateIncident plugin
+    confirmed application/json returns 200. This spec therefore sends
+    application/json. If a live 415 ever appears, switch the requestBody content
+    key to application/x-www-form-urlencoded.
   version: 1.0.0
 
 servers:
   - url: https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol
 
 paths:
-  /v1/investigations/{id}:
+  /v1/incidents/{id}:
     post:
       operationId: AddFindingDisposition
-      summary: Set the disposition on an ES finding (or investigation)
+      summary: Set the disposition on an ES finding (HAR-verified UI call)
       description: |
-        Sets the review disposition on an ES 8 finding or investigation,
-        identified by {id}, WITHOUT opening a Mission Control investigation. Uses
-        the SAME /v1/investigations namespace as AddFindingNote so it authenticates
-        the same way; writes a disposition instead of a note.
+        Sets the review disposition on an ES 8 finding, identified by {id}, WITHOUT
+        opening a Mission Control investigation. This is the same review-update call
+        the Mission Control UI fires when the Disposition dropdown is changed
+        (HAR-verified): POST /v1/incidents/{id}?notable_time=<epoch>.
 
         PATH PARAMETER:
         - id: the FINDING ID (or investigation id/display_id). For a finding, this
           is the FULL composite exactly as received — GUID@@notable@@time<epoch> —
           passed as ONE string. Do NOT split it, do NOT strip the @@notable@@time
           segment, and do NOT wrap it in a JSON array.
-          e.g. 2694b8bf-2cb6-4e91-97d7-7e61af8f4aad@@notable@@time1784674442
+          e.g. 8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748
 
         QUERY PARAMETER:
         - notable_time: REQUIRED for findings. The finding _time as epoch,
           extracted from the "@@time<epoch>" segment of the composite id (e.g.
-          1784674442). The v1/investigations namespace needs it sent explicitly or
-          the write on a finding fails ("No investigation found mapped to this
-          display id"), exactly as with AddFindingNote.
+          1786393748). Omitting it fails the update on a finding.
 
         BODY (application/json):
-        - disposition: the disposition CODE (REQUIRED), e.g. disposition:16. The
+        - disposition: the disposition CODE (REQUIRED), e.g. disposition:16 — the
           code from disposition_lookup, NEVER the human label. Security Copilot
           codes: disposition:16 (SC True Positive), disposition:15 (SC Benign
-          Positive). Send disposition ONLY — do NOT send status or any other
-          field; status and all other fields are left unchanged.
+          Positive). Send disposition ONLY — do NOT send status, urgency,
+          sensitivity, assignee, or any other field; status and all other fields
+          are left unchanged.
         - inherit_fields: optional boolean; send false so a finding-level
-          disposition does not propagate to a parent investigation.
+          disposition does not propagate to a parent investigation. (Present in the
+          UI HAR body.)
 
         #ExamplePrompts
-        - AddFindingDisposition id 2694b8bf-...@@notable@@time1784674442 disposition disposition:16
-        - Set the disposition of finding 2694b8bf-...@@notable@@time1784674442 to disposition:15
+        - AddFindingDisposition id 8b7b3093-...@@notable@@time1786393748 notable_time 1786393748 disposition disposition:16
+        - Set the disposition of finding 8b7b3093-...@@notable@@time1786393748 to disposition:15
         - Mark this finding as Security Copilot True Positive (disposition:16).
       parameters:
         - name: id
@@ -64,20 +78,20 @@ paths:
             investigation id/display_id. Single string — never a JSON array.
           schema:
             type: string
-            example: "2694b8bf-2cb6-4e91-97d7-7e61af8f4aad@@notable@@time1784674442"
+            example: "8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748"
         - name: notable_time
           in: query
           required: true
           description: >
             REQUIRED for findings. The finding _time as an epoch, extracted from
             the "@@time<epoch>" segment of the composite id. For
-            2694b8bf-...@@notable@@time1784674442 pass 1784674442.
+            8b7b3093-...@@notable@@time1786393748 pass 1786393748.
           schema:
             type: string
-            example: "1784674442"
+            example: "1786393748"
       requestBody:
         required: true
-        description: The disposition to set.
+        description: The disposition to set (JSON body; see CONTENT-TYPE NOTE in info.description).
         content:
           application/json:
             schema:
@@ -88,12 +102,6 @@ paths:
       responses:
         '200':
           description: Disposition set. Returns the review record id.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SetDispositionResponse'
-        '201':
-          description: Disposition set.
           content:
             application/json:
               schema:
