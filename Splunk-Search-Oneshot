@@ -1,0 +1,200 @@
+openapi: 3.0.3
+info:
+  title: Splunk Search — Oneshot (Dev)
+  description: >
+    Runs an ad-hoc SPL search against the Splunk Cloud search REST API in
+    exec_mode=oneshot and returns the result rows synchronously in the same HTTP
+    response. Replaces the Microsoft-provided Splunk skillset for the dev stack,
+    which is single-instance per Security Copilot tenant and therefore cannot be
+    pointed at dev while prod is attached.
+
+    exec_mode=oneshot means there is no search job SID, no polling, and no
+    follow-up call — splunkd blocks until the search completes and writes the
+    results into the response body. This is what makes it usable as a single
+    Security Copilot skill.
+
+    IMPORTANT — the search string must begin with an explicit "search" keyword
+    when the SPL starts with index=. The Splunk UI tolerates its omission; the
+    REST search API does not.
+
+    IMPORTANT — because the call is synchronous, a slow search is an HTTP
+    timeout, not a queued job. Host and user filters must be indexed keywords in
+    the base search, never a trailing "| where".
+
+    Dev stack. The Prod spec is byte-identical apart from servers.url and the
+    operationId suffix.
+  version: 1.0.0
+
+servers:
+  - url: https://es-dev-accenture.splunkcloud.com:8089
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /services/search/jobs:
+    post:
+      operationId: RunSplunkSearchDev
+      summary: Run an SPL search and return rows synchronously
+      description: |
+        Executes an SPL search against the dev Splunk Cloud instance and returns
+        the matching rows in the response body. Use this for every Splunk read in
+        the dev stack: notable lookup by source_event_id, 7-day alert history,
+        identity lookup, and disposition lookups.
+
+        BODY (application/x-www-form-urlencoded, flat, all strings):
+        - search: the SPL (REQUIRED). Must start with the literal keyword
+          "search" when the query begins with index=, e.g.
+          search index=notable source_event_id="GUID@@notable@@time1784674442"
+          Generating commands such as | identity_lookup_expanded must appear as
+          the FIRST command with NO leading pipe and NO leading search keyword.
+        - exec_mode: always oneshot (REQUIRED). Any other value turns this into
+          an async job and the response will contain a SID instead of rows.
+        - output_mode: always json (REQUIRED). Omitting it returns XML, which
+          this skill cannot present.
+        - earliest_time: optional search window start, e.g. -7d@d or an epoch.
+        - latest_time: optional search window end, e.g. now.
+        - count: optional cap on rows returned, as a STRING, e.g. "100".
+          Send "0" for no cap. Prefer an explicit cap.
+
+        RESPONSE:
+        A JSON object with a "results" array of row objects and a "fields" array
+        naming the columns. An empty "results" array means the search returned
+        zero rows.
+
+        OUTPUT RULES:
+        - Present the rows as a table using the field names returned in "fields".
+        - If "results" is empty, state plainly that the search returned zero rows.
+          NEVER describe a zero-row result as a clean, benign, or negative
+          finding — a zero-row result and a search that failed to run are
+          indistinguishable from the response alone.
+        - Echo the exact search string that was sent alongside the result count,
+          so a malformed or truncated SPL is visible rather than silent.
+        - On a non-200, surface the HTTP status and the full error body. A 400
+          usually means the leading "search" keyword is missing or the SPL has a
+          syntax error. A 401 means no bearer token was attached.
+
+        #ExamplePrompts
+        - RunSplunkSearchDev search "search index=notable source_event_id=\"2694b8bf-2cb6-4e91-97d7-7e61af8f4aad@@notable@@time1784674442\"" exec_mode oneshot output_mode json
+        - Look up the notable for this source_event_id in dev Splunk.
+        - Run this SPL against dev Splunk and show me the rows: [SPL]
+        - Get the 7-day alert history for host [hostname] from dev Splunk.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OneshotSearchRequest'
+      responses:
+        '200':
+          description: >
+            Search completed. Body contains the result rows. Note that a
+            successful HTTP 200 with an empty results array is a valid outcome
+            and does not imply the absence of the thing searched for.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OneshotSearchResponse'
+        '400':
+          description: >
+            Malformed SPL, or the leading search keyword is missing on a query
+            that begins with index=.
+        '401':
+          description: >
+            No bearer token attached, or the token has expired. Splunk Cloud JWTs
+            expire — check the token binding on the plugin before debugging SPL.
+        '500':
+          description: Splunk internal error.
+
+components:
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: >
+        Splunk Cloud JWT bearer token injected by Security Copilot as configured
+        in the plugin manifest Authorization block. Header value format is
+        Bearer followed by the JWT. The dev plugin must be bound to a DEV token.
+
+  schemas:
+
+    OneshotSearchRequest:
+      type: object
+      required:
+        - search
+        - exec_mode
+        - output_mode
+      description: >
+        Flat, all-string form body. Depth is one level and every property is a
+        string — Security Copilot dispatches this shape reliably, whereas nested
+        objects, booleans, and required arrays can silently fail to dispatch.
+      properties:
+        search:
+          type: string
+          description: >
+            The SPL to execute. Must begin with the literal keyword search when
+            the query starts with index=. Generating commands such as
+            identity_lookup_expanded must be the first command with no leading
+            pipe.
+          example: 'search index=notable source_event_id="2694b8bf-2cb6-4e91-97d7-7e61af8f4aad@@notable@@time1784674442" | head 1'
+        exec_mode:
+          type: string
+          description: >
+            Always oneshot. Any other value returns a search job SID instead of
+            rows and this skill will appear to succeed while returning nothing
+            usable.
+          enum:
+            - oneshot
+          default: oneshot
+          example: oneshot
+        output_mode:
+          type: string
+          description: Always json. Omitting it returns XML.
+          enum:
+            - json
+          default: json
+          example: json
+        earliest_time:
+          type: string
+          description: Search window start, relative or epoch.
+          example: '-7d@d'
+        latest_time:
+          type: string
+          description: Search window end, relative or epoch.
+          example: now
+        count:
+          type: string
+          description: >
+            Maximum rows to return, as a string. Send "0" for no cap. Sent as a
+            string rather than an integer to match the flat all-string body shape
+            that dispatches reliably.
+          example: '100'
+
+    OneshotSearchResponse:
+      type: object
+      description: >
+        Oneshot search result payload. Kept deliberately shallow — the row
+        objects vary by search and are passed through as returned.
+      properties:
+        results:
+          type: array
+          description: >
+            One object per result row, keyed by field name. An empty array means
+            zero rows matched and must be reported as such, never as a benign or
+            negative finding.
+          items:
+            type: object
+        fields:
+          type: array
+          description: Column descriptors naming the fields present in results.
+          items:
+            type: object
+        messages:
+          type: array
+          description: >
+            Search-time messages from splunkd. Non-empty messages on an
+            otherwise-empty result set usually explain why nothing came back.
+          items:
+            type: object
