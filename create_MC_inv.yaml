@@ -31,6 +31,11 @@ components:
 
     CreateInvestigationRequest:
       type: object
+      description: >
+        Flat (single-level) body. Do NOT add earliest or latest — they are not
+        valid MC v2 investigation body fields. Sending them makes the MC handler
+        fall back to an unscoped litsearch that returns noise instead of
+        resolving the finding.
       required:
         - name
         - finding_ids
@@ -97,20 +102,6 @@ components:
           minItems: 1
           example:
             - "b82f951f-150d-4c75-849d-7c5669755406@@notable@@time1776880498"
-        earliest:
-          type: string
-          description: >
-            Start of the time window Splunk uses to locate the finding in index=notable. Default is -30d to cover findings up to 90 days old.
-            Override with a wider window if the alert creation date is older than 30 days, for example, -180d or -90d.
-            Accepted formats: -30d, -60d, -90d, -180d, -1y, or an epoch timestamp integer
-          default: "-30d"
-          example: "-30d"
-        latest:
-          type: string
-          description: >
-            End of the time window Splunk uses to locate the finding in index=notable. Defaults to now, meaning the current time at the point of the API call
-          default: "now"
-          example: "now"
 
     CreateInvestigationResponse:
       type: object
