@@ -143,11 +143,11 @@ paths:
   /v1/incidents/{id}:
     post:
       operationId: UpdateIncident
-      summary: Set the disposition on an ES finding or MC incident (disposition only)
+      summary: Set the disposition (and optionally status) on an ES finding or MC incident
       description: |
-        Sets the DISPOSITION on an existing Splunk ES finding (or MC incident).
-        Send a flat JSON body containing ONLY the disposition field; status and
-        every other field are left unchanged.
+        Sets the DISPOSITION on an existing Splunk ES finding (or MC incident),
+        and optionally the review status. Send a flat JSON body containing only
+        the fields you intend to change; every field not sent is left unchanged.
 
         Endpoint: POST /v1/incidents/{id}
         Base path: /servicesNS/nobody/missioncontrol
