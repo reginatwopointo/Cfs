@@ -5,10 +5,10 @@ info:
   description: >
     Updates an existing Mission Control incident (investigation) or ES finding
     in Splunk Enterprise Security by calling the Splunk Cloud management API
-    directly. Primary use is to set the DISPOSITION on a finding — disposition
-    ONLY; status and every other field are left unchanged. Optional fields
-    (urgency, sensitivity, assignee) exist for reuse but are NOT used by the
-    CIRT finding-disposition flow.
+    directly. Flat (single-level) body. Send only the fields you intend to change; at
+    least one is required. disposition is the primary field. status is
+    optional and MUST be omitted unless a status change was explicitly
+    requested — every field not sent is left unchanged.
   version: "1.2.0"
 
 servers:
@@ -44,6 +44,15 @@ components:
             For the agent-determined-benign outcome use "disposition:15"
             ("Closed - Security Copilot Determined Benign Positive").
           example: "disposition:16"
+        status:
+          type: string
+          description: >
+            Optional. The review-status CODE from reviewstatuses_lookup, sent as
+            a string (e.g. "3" = Pending). Omit this field unless the caller has
+            explicitly asked for a status change — when omitted, the finding's
+            existing status is left untouched. Setting disposition alone does not
+            change status.
+          example: "3"
         urgency:
           type: string
           description: >
