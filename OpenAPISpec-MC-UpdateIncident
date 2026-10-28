@@ -15,6 +15,9 @@ servers:
   - url: https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol
     description: Splunk Cloud management API (port 8089), Mission Control base path
 
+security:
+  - bearerAuth: []
+
 components:
 
   securitySchemes:
@@ -22,17 +25,16 @@ components:
       type: apiKey
       in: header
       name: Authorization
-  security:
-    - bearerAuth: []
 
   schemas:
 
     UpdateIncidentRequest:
       type: object
       description: >
-        Flat (single-level) body. Send ONLY the disposition field. Do NOT send
-        status or any other attribute — status and all other fields MUST be
-        left unchanged. disposition is the single field used here.
+        Flat (single-level) body. Send only the fields you intend to change; at
+        least one is required. disposition is the primary field. Status is
+        optional and MUST be omitted unless a status change was explicitly
+        requested — every field not sent is left unchanged.
       properties:
         disposition:
           type: string
@@ -159,10 +161,10 @@ paths:
         composite exactly as received.
 
         disposition MUST be the code form "disposition:N" (e.g. disposition:16),
-        never the human label. Send disposition ONLY. Do NOT send status — the
-        finding's status (and every other field) MUST be left unchanged. There
-        is no benign-close-to-Pending workflow here: set the
-        Security-Copilot-attributed disposition and nothing else.
+        never the human label. Send disposition only, unless a status change was
+        explicitly requested — every field not sent is left unchanged. The normal
+        triage path sets the Security-Copilot-attributed disposition and nothing
+        else; the agent does not close the finding on its own.
 
         This is the same API version (v1) as notes and response plans. Do NOT
         use public/v2/investigations for updates — that returns MC_0005.
@@ -250,6 +252,6 @@ tags:
       Updates existing Mission Control incidents in Splunk Enterprise Security
       via the v1 endpoint POST /v1/incidents/{id} on base path
       /servicesNS/nobody/missioncontrol. Requires APIKey auth with Bearer
-      scheme. Sends disposition ONLY (the "disposition:N" code); status and all
-      other fields are left unchanged. The id path parameter accepts the finding
-      composite, a GUID, or an ES-XXXXX display_id.
+      scheme. Sends the "disposition:N" code, and optionally status when a status
+      change is requested; every field not sent is left unchanged. The id path
+      parameter accepts the finding composite, a GUID, or an ES-XXXXX display_id.
