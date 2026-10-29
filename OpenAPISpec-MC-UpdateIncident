@@ -6,9 +6,8 @@ info:
     Updates an existing Mission Control incident (investigation) or ES finding
     in Splunk Enterprise Security by calling the Splunk Cloud management API
     directly. Flat (single-level) body. Send only the fields you intend to change; at
-    least one is required. disposition is the primary field. status is
-    optional and MUST be omitted unless a status change was explicitly
-    requested — every field not sent is left unchanged.
+    least one is required. disposition is the primary field; status is optional
+    and applied only when sent — every field not sent is left unchanged.
   version: "1.2.0"
 
 servers:
@@ -32,9 +31,8 @@ components:
       type: object
       description: >
         Flat (single-level) body. Send only the fields you intend to change; at
-        least one is required. disposition is the primary field. Status is
-        optional and MUST be omitted unless a status change was explicitly
-        requested — every field not sent is left unchanged.
+        least one is required. Disposition is the primary field. Status is
+        optional and applied only when sent — every field not sent is left unchanged.
       properties:
         disposition:
           type: string
@@ -44,7 +42,7 @@ components:
             display-only. Look codes up in disposition_lookup (status column =
             code, label column = display string).
             For the agent-determined-benign outcome use "disposition:15"
-            ("Closed - Security Copilot Determined Benign Positive").
+            ("AI Triage - Benign Positive - Suspicious But Expected").
           example: "disposition:16"
         status:
           type: string
@@ -198,13 +196,23 @@ paths:
               $ref: '#/components/schemas/UpdateIncidentRequest'
             examples:
               set_true_positive:
-                summary: Set SC True Positive disposition on a finding (disposition only)
+                summary: Set AI Triage - True Positive disposition on a finding (disposition only)
                 value:
                   disposition: "disposition:16"
               set_benign_positive:
-                summary: Set SC Benign Positive disposition on a finding (disposition only)
+                summary: Set AI Triage - Benign Positive disposition on a finding (disposition only)
                 value:
                   disposition: "disposition:15"
+              set_benign_positive_pending:
+                summary: Set AI Triage - Benign Positive disposition and leave the incident Pending
+                value:
+                  disposition: "disposition:15"
+                  status: "3"
+              set_true_positive_pending:
+                summary: Set AI Triage - True Positive disposition and leave the incident Pending
+                value:
+                  disposition: "disposition:16"
+                  status: "3"
       responses:
         '200':
           description: Incident successfully updated. Returns the updated incident object.
