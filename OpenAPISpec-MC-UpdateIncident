@@ -174,7 +174,6 @@ paths:
         #ExamplePrompts Set the disposition of finding 8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748 to disposition:16
         #ExamplePrompts Mark this finding as Security Copilot Determined True Positive (disposition:16)
         #ExamplePrompts Set disposition disposition:15 on finding 8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748
-        #ExamplePrompts Update the disposition of this finding, leave status unchanged
         #ExamplePrompts Set disposition disposition:15 and status 3 on incident 8afcb116-632c-4f4f-bc35-9a7557b62c82
       tags:
         - Mission Control Incidents
