@@ -48,10 +48,10 @@ components:
           type: string
           description: >
             Optional. The review-status CODE from reviewstatuses_lookup, sent as
-            a string (e.g. "3" = Pending). Omit this field unless the caller has
-            explicitly asked for a status change — when omitted, the finding's
-            existing status is left untouched. Setting disposition alone does not
-            change status.
+            a string (e.g. "3" = Pending). Send it when the incident should be
+            left Pending for human confirmation; when omitted, the existing
+            status is left untouched. Setting disposition alone does not change
+            status.
           example: "3"
         urgency:
           type: string
@@ -159,10 +159,10 @@ paths:
         composite exactly as received.
 
         disposition MUST be the code form "disposition:N" (e.g. disposition:16),
-        never the human label. Send disposition only, unless a status change was
-        explicitly requested — every field not sent is left unchanged. The normal
-        triage path sets the Security-Copilot-attributed disposition and nothing
-        else; the agent does not close the finding on its own.
+        never the human label. Send status alongside it when the incident should
+        be left Pending for human confirmation; every field not sent is left
+        unchanged. The agent proposes a disposition and leaves the incident
+        Pending — it does not close the finding on its own.
 
         This is the same API version (v1) as notes and response plans. Do NOT
         use public/v2/investigations for updates — that returns MC_0005.
@@ -175,6 +175,7 @@ paths:
         #ExamplePrompts Mark this finding as Security Copilot Determined True Positive (disposition:16)
         #ExamplePrompts Set disposition disposition:15 on finding 8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748
         #ExamplePrompts Update the disposition of this finding, leave status unchanged
+        #ExamplePrompts Set disposition disposition:15 and status 3 on incident 8afcb116-632c-4f4f-bc35-9a7557b62c82
       tags:
         - Mission Control Incidents
       parameters:
@@ -222,7 +223,7 @@ paths:
                 $ref: '#/components/schemas/UpdateIncidentResponse'
         '400':
           description: >
-            Bad request. Common causes: no disposition supplied, or disposition
+            Bad request. Common causes: no updatable field supplied, or disposition
             sent as a label instead of the "disposition:N" code.
           content:
             application/json:
