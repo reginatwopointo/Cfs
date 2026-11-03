@@ -22,7 +22,7 @@ paths:
         NEUTRAL, not as benign confirmation.
         #ExamplePrompts
         GetDomainReport domain www.linkedin.com
-        GetDomainReport for orangecountyfulfillment.com
+        GetDomainReport for domainexample.com
         Look up the VirusTotal reputation of the domain github.com
         Is the domain example.com malicious on VirusTotal
       parameters:
