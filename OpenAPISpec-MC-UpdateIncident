@@ -41,8 +41,6 @@ components:
             label. Mission Control stores and matches on the code; the label is
             display-only. Look codes up in disposition_lookup (status column =
             code, label column = display string).
-            For the agent-determined-benign outcome use "disposition:15"
-            ("AI Triage - Benign Positive - Suspicious But Expected").
           example: "disposition:16"
         status:
           type: string
@@ -98,7 +96,7 @@ components:
         id:
           type: string
           description: Internal GUID of the updated incident.
-          example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
+          example: "8afcb116-632d-4f4f-bc35-9a7557b62c82"
         display_id:
           type: string
           description: Human-readable ID in ES-XXXXX / MC-XXXXX format.
@@ -150,7 +148,7 @@ paths:
         Endpoint: POST /v1/incidents/{id}
         Base path: /servicesNS/nobody/missioncontrol
         Full URL example:
-        POST https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol/v1/incidents/8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748
+        POST https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol/v1/incidents/8b7d3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748
         Body: { "disposition": "disposition:16" }
 
         The id path parameter accepts the ES FINDING composite
@@ -171,10 +169,10 @@ paths:
         back to the analyst — never omit the GUID or reduce the result to a
         vague summary.
 
-        #ExamplePrompts Set the disposition of finding 8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748 to disposition:16
+        #ExamplePrompts Set the disposition of finding 8b7b3094-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748 to disposition:16
         #ExamplePrompts Mark this finding as Security Copilot Determined True Positive (disposition:16)
-        #ExamplePrompts Set disposition disposition:15 on finding 8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748
-        #ExamplePrompts Set disposition disposition:15 and status 3 on incident 8afcb116-632c-4f4f-bc35-9a7557b62c82
+        #ExamplePrompts Set disposition disposition:14 on finding 8b7b3093-2f9c-4393-b8d4-9bd21580cad6@@notable@@time1786393748
+        #ExamplePrompts Set disposition disposition:14 and status 3 on incident 8afcb117-632c-4f4f-bc35-9a7557b62c82
       tags:
         - Mission Control Incidents
       parameters:
@@ -187,7 +185,7 @@ paths:
             Display ID format: ES-00142
           schema:
             type: string
-          example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
+          example: "8afcb117-632c-4f4f-bc35-9a7557b62c82"
       requestBody:
         required: true
         content:
@@ -198,20 +196,20 @@ paths:
               set_true_positive:
                 summary: Set AI Triage - True Positive disposition on a finding (disposition only)
                 value:
-                  disposition: "disposition:16"
+                  disposition: "disposition:12"
               set_benign_positive:
                 summary: Set AI Triage - Benign Positive disposition on a finding (disposition only)
                 value:
-                  disposition: "disposition:15"
+                  disposition: "disposition:13"
               set_benign_positive_pending:
                 summary: Set AI Triage - Benign Positive disposition and leave the incident Pending
                 value:
-                  disposition: "disposition:15"
+                  disposition: "disposition:13"
                   status: "3"
               set_true_positive_pending:
                 summary: Set AI Triage - True Positive disposition and leave the incident Pending
                 value:
-                  disposition: "disposition:16"
+                  disposition: "disposition:12"
                   status: "3"
       responses:
         '200':
