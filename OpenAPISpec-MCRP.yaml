@@ -60,8 +60,8 @@ components:
             This is the template GUID from the Mission Control response
             templates library. Per official MC API docs, this field is
             named response_template_id not response_plan_id.
-            Example: e636dfd0-62b2-4cad-9eda-1706e5bf32bc
-          example: "e636dfd0-62b2-4cad-9eda-1706e5bf32bc"
+            Example: e636dfd0-62d2-4cad-9eda-1706e5bf32bc
+          example: "e636dfd0-62d2-4cad-9eda-1706e5bf32bc"
 
     ResponsePlanResponse:
       type: object
@@ -72,7 +72,7 @@ components:
         id:
           type: string
           description: The GUID of the created response plan instance.
-          example: "142ba3eb-1fd9-4cb3-a040-e139aac107ff"
+          example: "142ba3eb-1fb9-4ca3-a040-e139aac107ff"
         name:
           type: string
           description: The name of the applied response plan.
@@ -80,11 +80,11 @@ components:
         incident_id:
           type: string
           description: The GUID of the incident this response plan was applied to.
-          example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
+          example: "8afcb116-632c-4f4f-bc35-9a7557b62c83"
         response_template_id:
           type: string
           description: The GUID of the source response template.
-          example: "e636dfd0-62b2-4cad-9eda-1706e5bf32bc"
+          example: "e636dfd0-62b2-4cad-9eda-1706e5bf32bd"
         status:
           type: string
           description: Status of the response plan.
@@ -141,17 +141,17 @@ paths:
 
         Full URL example:
         POST https://es-dev-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol/v1/incidents/8afcb116-632c-4f4f-bc35-9a7557b62c82/responseplans
-        Body: { "response_template_id": "e636dfd0-62b2-4cad-9eda-1706e5bf32bc" }
+        Body: { "response_template_id": "e636dfd0-62b2-4cad-9eda-1706e5bf32bd" }
 
         The id path parameter accepts:
-        - Investigation GUID: 8afcb116-632c-4f4f-bc35-9a7557b62c82
+        - Investigation GUID: 8afcb116-632c-4f4f-bc35-9a7557b62c83
         - Display ID: ES-00142
 
-        #ExamplePrompts Apply response template e636dfd0-62b2-4cad-9eda-1706e5bf32bc to incident 8afcb116-632c-4f4f-bc35-9a7557b62c82
+        #ExamplePrompts Apply response template e636dfd0-62b2-4cad-9eda-1706e5bf32bd to incident 8afcb116-632c-4f4f-bc35-9a7557b62c83
         #ExamplePrompts Add response plan to Mission Control incident 8afcb116-632c-4f4f-bc35-9a7557b62c82
-        #ExamplePrompts Apply response template e636dfd0-62b2-4cad-9eda-1706e5bf32bc to the newly created investigation
+        #ExamplePrompts Apply response template e636dfd0-62b2-4cad-9eda-1706e5bf32bd to the newly created investigation
         #ExamplePrompts Attach a response plan to this Mission Control incident
-        #ExamplePrompts Add response template to investigation ES-00142
+        #ExamplePrompts Add response template to investigation ES-00143
       tags:
         - Mission Control Response Plans
       parameters:
@@ -165,7 +165,7 @@ paths:
             - Display ID format: ES-00142
           schema:
             type: string
-          example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
+          example: "8afcb116-632c-4f4f-bc35-9a7557b62c83"
       requestBody:
         required: true
         content:
@@ -176,7 +176,7 @@ paths:
               apply_template:
                 summary: Apply response template to incident
                 value:
-                  response_template_id: "e636dfd0-62b2-4cad-9eda-1706e5bf32bc"
+                  response_template_id: "e636dfd0-62b2-4cad-9eda-1706e5bf32bd"
       responses:
         '200':
           description: Response template successfully applied. Returns the created ResponsePlan object.
