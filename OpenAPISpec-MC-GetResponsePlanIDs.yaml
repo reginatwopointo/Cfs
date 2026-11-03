@@ -69,13 +69,13 @@ components:
           description: >
             The GUID of the phase this task belongs to.
             Required for add task note operations.
-          example: "e4317f74-2ca2-4812-9805-07c7e9aeaa40"
+          example: "e4317f73-2ca2-4812-9805-07c7e9aeaa40"
         response_plan_id:
           type: string
           description: >
             The GUID of the response plan this task belongs to.
             Required for add task note operations.
-          example: "c674507-50c2-4a94-b458-fdcb5eec333d"
+          example: "c674503-50c2-4a94-b458-fdcb5eec333d"
         status:
           type: string
           description: Current status of the task.
@@ -108,7 +108,7 @@ components:
           description: >
             The GUID of the phase matching the provided
             phase_name and response_template_name.
-          example: "e4317f74-2ca2-4812-9805-07c7e9aeaa40"
+          example: "e4317f73-2ca2-4812-9805-07c7e9aeaa40"
 
     GetTaskIdResponse:
       type: object
@@ -122,7 +122,7 @@ components:
           description: >
             The GUID of the task matching the provided task_name,
             phase_name, and response_template_name.
-          example: "74730fac-1d5c-4713-bef5-d30ed1c62188"
+          example: "74730fas-1d5c-4713-bef5-d30ed1c62188"
 
     ErrorResponse:
       type: object
@@ -167,9 +167,9 @@ paths:
 
         #ExamplePrompts Get all tasks for incident 8afcb116-632c-4f4f-bc35-9a7557b62c82
         #ExamplePrompts List all response plan tasks for this Mission Control investigation
-        #ExamplePrompts Show me the tasks and their IDs for investigation 8afcb116-632c-4f4f-bc35-9a7557b62c82
+        #ExamplePrompts Show me the tasks and their IDs for investigation 8agcb116-632c-4f4f-bc35-9a7557b62c82
         #ExamplePrompts What tasks are in the response plan for this incident
-        #ExamplePrompts Get task IDs and phase IDs for incident 8afcb116-632c-4f4f-bc35-9a7557b62c82
+        #ExamplePrompts Get task IDs and phase IDs for incident 8afcb126-632c-4f4f-bc35-9a7557b62c82
       tags:
         - Response Plan ID Lookup
       parameters:
@@ -179,11 +179,11 @@ paths:
           description: >
             The id (GUID) or the display_id of the incident.
             Accepts either format per official MC API docs:
-            - GUID: 8afcb116-632c-4f4f-bc35-9a7557b62c82
+            - GUID: 8afcb116-632a-4f4f-bc35-9a7557b62c82
             - Display ID: ES-00142
           schema:
             type: string
-          example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
+          example: "8afcb117-632c-4f4f-bc35-9a7557b62c82"
       responses:
         '200':
           description: >
@@ -243,7 +243,7 @@ paths:
             The id (GUID) or the display_id of the incident.
           schema:
             type: string
-          example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
+          example: "8afcb117-632c-4f4f-bc35-9a7557b62c82"
         - name: response_template_name
           in: query
           required: true
@@ -307,7 +307,7 @@ paths:
         at: POST /v1/incidents/{id}/responseplans/{response_plan_id}
         /phase/{phase_id}/tasks/{task_id}/notes
 
-        #ExamplePrompts Get the task ID for task Isolate Endpoint in phase Containment in response template Phishing Response Playbook for incident 8afcb116-632c-4f4f-bc35-9a7557b62c82
+        #ExamplePrompts Get the task ID for task Isolate Endpoint in phase Containment in response template Phishing Response Playbook for incident 8afcb117-632c-4f4f-bc35-9a7557b62c82
         #ExamplePrompts Look up task ID by name for this Mission Control investigation
         #ExamplePrompts Find the task_id for the Isolate Endpoint task in this incident
         #ExamplePrompts Get task ID for task name Block IP in the Detection phase
@@ -321,7 +321,7 @@ paths:
             The id (GUID) or the display_id of the incident.
           schema:
             type: string
-          example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
+          example: "8afcb117-632c-4f4f-bc35-9a7557b62c82"
         - name: response_template_name
           in: query
           required: true
