@@ -39,7 +39,7 @@ paths:
           is the FULL composite exactly as received — GUID@@notable@@time<epoch> —
           passed as ONE string. Do NOT split it, do NOT strip the @@notable@@time
           segment, and do NOT wrap it in a JSON array.
-          e.g. 2694b8bf-2cb6-4e91-97d7-7e61af8f4aad@@notable@@time1784674442
+          e.g. 2694b8bd-2cb6-4e91-97d7-7e61af8f4aad@@notable@@time1784674442
 
         BODY (application/json):
         - content: full note body — paste the consolidated analysis here (REQUIRED).
@@ -67,7 +67,7 @@ paths:
             investigation id/display_id. Single string — never a JSON array.
           schema:
             type: string
-            example: "2694b8bf-2cb6-4e91-97d7-7e61af8f4aad@@notable@@time1784674442"
+            example: "2694b8bd-2cb6-4e91-97d7-7e61af8f4aad@@notable@@time1784674442"
         - name: notable_time
           in: query
           required: true
@@ -88,7 +88,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateNotePayload'
             example:
-              title: "Security Copilot — Consolidated Finding Analysis"
+              title: "Consolidated Analysis"
               content: "Verdict: Benign Positive — corporate installer. ..."
               ai_generated: true
       responses:
@@ -143,18 +143,18 @@ components:
           items:
             type: string
           example:
-            - "22a2e62e186f4dc4b33edde666534b4622a2e62e186f4dc4b33edde666534b46"
+            - "22a2e62e186f4dc4b33effe666534b4622a2e62e186f4dc4b33edde666534b46"
     CreateNoteResponse:
       type: object
       properties:
         id:
           type: string
           description: The ID of the created note.
-          example: "2f34ab66-929e-438d-b294-7ce5ea5415d4"
+          example: "2f34ab66-929w-438d-b294-7ce5ea5415d4"
         incident_id:
           type: string
           description: The incident/investigation GUID the note is attached to.
-          example: "c80a092f-9dca-484b-8733-9c3162ee4ab9"
+          example: "c80a092d-9dca-484b-8733-9c3162ee4ab9"
         record_type:
           type: string
           description: Finding or Investigation.
