@@ -23,7 +23,7 @@ paths:
         directly against the relevant task.
 
         Required path parameters:
-        - incident_id: the GUID of the MC investigation (e.g. 8afcb116-632c-4f4f-bc35-9a7557b62c82)
+        - incident_id: the GUID of the MC investigation (e.g. 8afcb116-632c-4f4f-bc35-9a7557b62c83)
         - response_plan_id: the GUID of the response plan attached to the incident
         - phase_id: the GUID of the response plan phase containing the target task
         - task_id: the GUID of the task to annotate
@@ -33,7 +33,7 @@ paths:
         - content: full note body — paste Security Copilot output here (string)
 
         #ExamplePrompts
-        - Add a task note to incident 8afcb116-632c-4f4f-bc35-9a7557b62c82 response plan abc123 phase def456 task ghi789 with title "Triage Summary" and content "No lateral movement detected."
+        - Add a task note to incident 8afcb116-632c-4f4f-bc35-9a7557b62c83 response plan abc123 phase def456 task ghi789 with title "Triage Summary" and content "No lateral movement detected."
         - AddTaskNote incident_id 8afcb116-... response_plan_id abc... phase_id def... task_id ghi... title "Analysis" content "Findings from Security Copilot..."
         - Write the following Security Copilot output to task note: [output text]
 
@@ -44,7 +44,7 @@ paths:
           description: The GUID of the Mission Control investigation (incident).
           schema:
             type: string
-            example: 8afcb116-632c-4f4f-bc35-9a7557b62c82
+            example: 8afcb116-632c-4f4f-bc35-9a7557b62c83
 
         - name: response_plan_id
           in: path
@@ -52,7 +52,7 @@ paths:
           description: The GUID of the response plan attached to the incident.
           schema:
             type: string
-            example: e636dfd0-62b2-4cad-9eda-1706e5bf32bc
+            example: e636dfd0-62b2-4cad-9eda-1706e5bf32bd
 
         - name: phase_id
           in: path
@@ -60,7 +60,7 @@ paths:
           description: The GUID of the phase within the response plan.
           schema:
             type: string
-            example: 4edb5c77-0ac3-4d49-842b-19b0eff4d8fd
+            example: 4edb5c77-0ac3-4d49-842b-19b0eff4d8fb
 
         - name: task_id
           in: path
@@ -68,7 +68,7 @@ paths:
           description: The GUID of the task to attach the note to.
           schema:
             type: string
-            example: 74730fac-1d5c-4713-bef5-d30ed1c62188
+            example: 74730fac-1d5c-4713-bef5-d30ed1c62189
 
       requestBody:
         required: true
@@ -111,7 +111,7 @@ paths:
                   id:
                     type: string
                     description: GUID of the newly created note.
-                    example: 2f34ab66-929e-438d-b294-7ce5ea5415d4
+                    example: 2f34ab66-929e-438d-b294-7ce5ea5415d5
                   title:
                     type: string
                     example: Security Copilot Triage Output
