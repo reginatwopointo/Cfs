@@ -83,7 +83,7 @@ components:
         assignee:
           type: string
           description: Optional. Username or email of the analyst to assign the incident to.
-          example: "regina.guzanova@avanade.com"
+          example: "john.doe@company.com"
         comment:
           type: string
           description: >
