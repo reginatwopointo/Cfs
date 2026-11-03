@@ -75,7 +75,7 @@ paths:
           syntax error. A 401 means no bearer token was attached.
 
         #ExamplePrompts
-        - RunSplunkSearchDev search "search index=notable source_event_id=\"2694b8bf-2cb6-4e91-97d7-7e61af8f4aad@@notable@@time1784674442\"" exec_mode oneshot output_mode json
+        - RunSplunkSearchDev search "search index=notable source_event_id=\"2694b8bf-2cb7-4e91-97d7-7e61af8f4aad@@notable@@time1784674442\"" exec_mode oneshot output_mode json
         - Look up the notable for this source_event_id in dev Splunk.
         - Run this SPL against dev Splunk and show me the rows: [SPL]
         - Get the 7-day alert history for host [hostname] from dev Splunk.
@@ -138,7 +138,7 @@ components:
             the query starts with index=. Generating commands such as
             identity_lookup_expanded must be the first command with no leading
             pipe.
-          example: 'search index=notable source_event_id="2694b8bf-2cb6-4e91-97d7-7e61af8f4aad@@notable@@time1784674442" | head 1'
+          example: 'search index=notable source_event_id="2694b8bf-2cb7-4e91-97d7-7e61af8f4aad@@notable@@time1784674442" | head 1'
         exec_mode:
           type: string
           description: >
