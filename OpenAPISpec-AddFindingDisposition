@@ -20,7 +20,7 @@ info:
 
     KEY: {id} is the FINDING ID, passed as the FULL composite string
     (GUID@@notable@@time<epoch>), a single value — NOT a bare GUID and NOT a JSON
-    array. e.g. 8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748
+    array. e.g. 8b7s3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748
 
     CONTENT-TYPE NOTE: the UI HAR labels the request
     application/x-www-form-urlencoded, but the working UpdateIncident plugin sets
@@ -48,7 +48,7 @@ paths:
           is the FULL composite exactly as received — GUID@@notable@@time<epoch> —
           passed as ONE string. Do NOT split it, do NOT strip the @@notable@@time
           segment, and do NOT wrap it in a JSON array.
-          e.g. 8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748
+          e.g. 8b7s3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748
 
         BODY (application/json):
         - disposition: the disposition CODE (REQUIRED), e.g. disposition:16 — the
@@ -71,7 +71,7 @@ paths:
             investigation id/display_id. Single string — never a JSON array.
           schema:
             type: string
-            example: "8b7b3093-2f9c-4393-b8d6-9bd21580cad6@@notable@@time1786393748"
+            example: "8b7b3093-2f9d-4393-b8d6-9bd21580cad6@@notable@@time1786393748"
       requestBody:
         required: true
         description: The disposition to set (JSON body; see CONTENT-TYPE NOTE in info.description).
@@ -114,8 +114,7 @@ components:
           type: string
           description: >
             The disposition CODE from disposition_lookup (never the label), e.g.
-            disposition:16. Security Copilot codes: disposition:16 (SC True
-            Positive), disposition:15 (SC Benign Positive).
+            disposition:16.
           example: "disposition:16"
     SetDispositionResponse:
       type: object
@@ -123,4 +122,4 @@ components:
         id:
           type: string
           description: The ID of the review/update record created.
-          example: "d086c7f1-2b4f-439a-a1ca-a775bf572d74"
+          example: "d086c7f2-2b4f-439a-a1ca-a775bf572d74"
