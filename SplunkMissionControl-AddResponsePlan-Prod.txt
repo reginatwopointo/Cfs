@@ -1,0 +1,215 @@
+openapi: 3.0.3
+
+info:
+  title: Splunk Mission Control - Add Response Plan - Prod
+  description: >
+    Applies a response template to an existing Mission Control incident
+    in Splunk Enterprise Security. Based on the official Splunk Mission
+    Control Automation API Reference (mc_openapi.json).
+
+    Key terminology from official docs:
+    - "response template" is the library item (response_template_id)
+    - "response plan" is what it becomes after being applied to an incident
+    - The incident is identified by its GUID or display_id (ES-XXXXX)
+    - The endpoint is v1/incidents not v2/investigations
+
+    Authentication uses a Bearer JWT token configured in the Security
+    Copilot plugin manifest.
+  version: "2.0.0"
+
+servers:
+  - url: https://es-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol
+    description: >
+      Splunk Mission Control API. Base path includes the full
+      servicesNS/nobody/missioncontrol prefix as documented in the
+      official MC API reference.
+
+security:
+  - ApiKeyAuth: []
+
+components:
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: >
+        Splunk Cloud JWT Bearer token injected by Security Copilot
+        as configured in the plugin manifest Authorization block.
+        Header value format: Bearer <jwt>
+
+  schemas:
+
+    AddResponsePlanRequest:
+      type: object
+      required:
+        - response_template_id
+      description: >
+        Request body for applying a response template to an incident.
+        Per official MC API docs, the field is response_template_id
+        not response_plan_id. These are different things:
+        response_template_id is the library template GUID.
+        The response plan is what gets created on the incident after
+        the template is applied.
+      properties:
+        response_template_id:
+          type: string
+          description: >
+            The ID of the response template to be applied to the incident.
+            This is the template GUID from the Mission Control response
+            templates library. Per official MC API docs, this field is
+            named response_template_id not response_plan_id.
+            Example: e636dfd0-62b2-4cad-9eda-1706e5bf32bc
+          example: "e636dfd0-62b2-4cad-9eda-1706e5bf32bc"
+
+    ResponsePlanResponse:
+      type: object
+      description: >
+        The ResponsePlan object returned after successfully applying
+        a response template to an incident.
+      properties:
+        id:
+          type: string
+          description: The GUID of the created response plan instance.
+          example: "142ba3eb-1fd9-4cb3-a040-e139aac107ff"
+        name:
+          type: string
+          description: The name of the applied response plan.
+          example: "Phishing Response Playbook"
+        incident_id:
+          type: string
+          description: The GUID of the incident this response plan was applied to.
+          example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
+        response_template_id:
+          type: string
+          description: The GUID of the source response template.
+          example: "e636dfd0-62b2-4cad-9eda-1706e5bf32bc"
+        status:
+          type: string
+          description: Status of the response plan.
+          example: "active"
+        create_time:
+          type: number
+          description: Unix epoch timestamp of when the response plan was created.
+          example: 1780524542.85943
+        update_time:
+          type: number
+          description: Unix epoch timestamp of last update.
+          example: 1780524542.85943
+
+    ErrorResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [ERROR, WARN, FATAL]
+              text:
+                type: string
+        code:
+          type: string
+          description: MC error code e.g. MC_0005
+        message:
+          type: string
+          description: Human-readable error message
+        requestId:
+          type: string
+          description: Request ID for support reference
+
+paths:
+
+  /v1/incidents/{id}/responseplans:
+    post:
+      operationId: AddResponsePlanProd
+      summary: Apply a response template to a Mission Control incident
+      description: |
+        Applies a response template to an existing Mission Control incident
+        in Splunk Enterprise Security, creating a response plan on that
+        incident.
+
+        Per the official MC Automation API reference:
+        - The endpoint is /v1/incidents/{id}/responseplans
+        - The incident id path parameter accepts either the GUID or
+          the ES-XXXXX display_id
+        - The request body field is response_template_id (NOT response_plan_id)
+        - The base server path is /servicesNS/nobody/missioncontrol
+
+        Full URL example:
+        POST https://es-accenture.splunkcloud.com:8089/servicesNS/nobody/missioncontrol/v1/incidents/8afcb116-632c-4f4f-bc35-9a7557b62c82/responseplans
+        Body: { "response_template_id": "e636dfd0-62b2-4cad-9eda-1706e5bf32bc" }
+
+        The id path parameter accepts:
+        - Investigation GUID: 8afcb116-632c-4f4f-bc35-9a7557b62c82
+        - Display ID: ES-00142
+
+        #ExamplePrompts Apply response template e636dfd0-62b2-4cad-9eda-1706e5bf32bc to incident 8afcb116-632c-4f4f-bc35-9a7557b62c82
+        #ExamplePrompts Add response plan to Mission Control incident 8afcb116-632c-4f4f-bc35-9a7557b62c82
+        #ExamplePrompts Apply response template e636dfd0-62b2-4cad-9eda-1706e5bf32bc to the newly created investigation
+        #ExamplePrompts Attach a response plan to this Mission Control incident
+        #ExamplePrompts Add response template to investigation ES-00142
+      tags:
+        - Mission Control Response Plans
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: >
+            The id (GUID) or the display_id of the incident.
+            Accepts either format per official MC API docs:
+            - GUID format: 8afcb116-632c-4f4f-bc35-9a7557b62c82
+            - Display ID format: ES-00142
+          schema:
+            type: string
+          example: "8afcb116-632c-4f4f-bc35-9a7557b62c82"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddResponsePlanRequest'
+            examples:
+              apply_template:
+                summary: Apply response template to incident
+                value:
+                  response_template_id: "e636dfd0-62b2-4cad-9eda-1706e5bf32bc"
+      responses:
+        '200':
+          description: Response template successfully applied. Returns the created ResponsePlan object.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponsePlanResponse'
+        '400':
+          description: >
+            Bad format. response_template_id missing or malformed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized. JWT token missing, expired, or malformed.
+        '403':
+          description: >
+            Forbidden. Token does not have permission to apply response
+            templates. Requires ess_analyst role minimum.
+        '500':
+          description: Internal server error on the Splunk stack.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Mission Control Response Plans
+    description: >
+      Applies response templates to existing Mission Control incidents
+      per the official Splunk MC Automation API reference.
+      Endpoint: POST /v1/incidents/{id}/responseplans
+      Server: https://{stack}:8089/servicesNS/nobody/missioncontrol
+      Request body field: response_template_id (not response_plan_id)
+      The id path parameter accepts GUID or ES-XXXXX display_id.
