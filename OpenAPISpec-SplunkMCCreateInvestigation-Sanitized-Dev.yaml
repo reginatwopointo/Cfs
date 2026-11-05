@@ -1,0 +1,160 @@
+openapi: 3.0.3
+
+info:
+  title: Create Investigation
+  description: >
+    Creates a case-management investigation linked to one or more existing
+    finding IDs.
+  version: "1.1.0"
+
+# Placeholder only. The real base URL is supplied per plugin instance through
+# the manifest setting named in EndpointUrlSettingName and overrides this value.
+# The .invalid TLD never resolves, so if the override is not applied the call
+# fails closed instead of reaching an unintended host.
+servers:
+  - url: https://endpoint-configured-in-plugin-settings.invalid
+
+security:
+  - ApiKeyAuth: []
+
+components:
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+
+  schemas:
+
+    CreateInvestigationRequest:
+      type: object
+      description: Flat (single-level) request body.
+      required:
+        - name
+        - finding_ids
+      properties:
+        name:
+          type: string
+          description: Display name for the investigation (required).
+        description:
+          type: string
+          description: Free-text summary of the event.
+        investigation_type:
+          type: string
+          description: Investigation classification.
+        urgency:
+          type: string
+          description: Urgency level.
+          enum:
+            - informational
+            - low
+            - medium
+            - high
+            - critical
+            - Informational
+            - Low
+            - Medium
+            - High
+            - Critical
+          default: "low"
+        sensitivity:
+          type: string
+          description: Sensitivity classification.
+          enum:
+            - Unassigned
+            - White
+            - Green
+            - Amber
+            - Red
+          default: "Unassigned"
+        finding_ids:
+          type: array
+          description: >
+            MUST be a JSON array of one or more finding ID strings, even for a
+            single ID. Never send a plain string.
+          items:
+            type: string
+          minItems: 1
+
+    CreateInvestigationResponse:
+      type: object
+      properties:
+        investigation_id:
+          type: string
+          description: Internal GUID of the created investigation.
+        display_id:
+          type: string
+          description: Human-readable investigation ID shown in the queue.
+        name:
+          type: string
+        urgency:
+          type: string
+        sensitivity:
+          type: string
+        status:
+          type: string
+        finding_ids:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              text:
+                type: string
+
+paths:
+
+  /public/v2/investigations:
+    post:
+      operationId: CreateMCInvestigationDev
+      summary: Create an investigation from one or more finding IDs
+      description: |
+        Creates a new investigation linked to one or more existing findings.
+        finding_ids must always be sent as a JSON array.
+
+        #ExamplePrompts Create an investigation for this finding
+        #ExamplePrompts Open a new investigation for finding ID <finding_id>
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvestigationRequest'
+      responses:
+        '200':
+          description: Investigation created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateInvestigationResponse'
+        '400':
+          description: Bad request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized.
+        '403':
+          description: Forbidden.
+        '404':
+          description: Not found.
+        '409':
+          description: Conflict.
+        '429':
+          description: Rate limit exceeded.
+        '500':
+          description: Server error.
