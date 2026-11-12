@@ -1,0 +1,100 @@
+openapi: 3.0.3
+
+info:
+  title: VirusTotal IOC Lookup (Logic App HTTP trigger)
+  description: >
+    Looks up to 5 indicators (ip, domain, url, hash) in VirusTotal v3 through the Lookup_IP_Geolocation_DEV
+    Logic App, called directly on its HTTP trigger callback URL. The trigger's SAS signature (sig) is the API key,
+    injected by Security Copilot from the plugin manifest Authorization block, so callers need no Azure RBAC on the
+    workflow. Returns a compact {"count":N,"results":[...]} object - one result per indicator in request order.
+  version: 1.0.0
+
+servers:
+  # Sanitized: the real base URL is supplied at plugin setup through the manifest setting VirusTotalTriggerBaseUrl
+  # (EndpointUrlSettingName), so it is never published in this spec.
+  - url: https://<region-host>.logic.azure.com:443/workflows/<workflow-id>
+    description: Lookup_IP_Geolocation_DEV HTTP trigger - base URL overridden by the VirusTotalTriggerBaseUrl plugin setting
+
+security:
+  - TriggerSig: []
+
+components:
+  securitySchemes:
+    TriggerSig:
+      type: apiKey
+      in: query
+      name: sig
+      description: >
+        Logic App trigger SAS signature (the sig value of the trigger callback URL). Stored only in the plugin's
+        API-key setting - never in this spec or the manifest. Regenerating the trigger access keys invalidates it.
+
+paths:
+  /triggers/manual/paths/invoke:
+    post:
+      operationId: LookupIocsVirusTotal
+      summary: Look up up to 5 IOCs in VirusTotal
+      description: >
+        Returns VirusTotal reputation for up to 5 indicators of type ip, domain, url or hash in ONE call. Each
+        result has lookup_status (ok | not_found | rate_limited | error | skipped_empty | skipped_non_public |
+        unsupported_type), malicious, suspicious, harmless, undetected and the type-specific fields (owner/ASN for
+        IPs, registrar for domains, final URL for URLs, signer / signature_verified / popular_threat_label for file
+        hashes). The three query parameters api-version, sp and sv are FIXED - always send exactly the listed
+        value. #ExamplePrompts LookupIocsVirusTotal iocs [{"type":"hash","value":"9ffd73473df17d443fa3bb11f0a2cb0ed30002bf4a60cbf8024ac3796c15a541"}]
+        #ExamplePrompts Look up these indicators in VirusTotal: [{"type":"ip","value":"20.50.88.238"},{"type":"domain","value":"example.com"}]
+      parameters:
+        - name: api-version
+          in: query
+          required: true
+          description: FIXED value - always exactly 2016-10-01.
+          schema:
+            type: string
+            enum: ["2016-10-01"]
+            default: "2016-10-01"
+        - name: sp
+          in: query
+          required: true
+          description: FIXED value - always exactly /triggers/manual/run.
+          schema:
+            type: string
+            enum: ["/triggers/manual/run"]
+            default: "/triggers/manual/run"
+        - name: sv
+          in: query
+          required: true
+          description: FIXED value - always exactly 1.0.
+          schema:
+            type: string
+            enum: ["1.0"]
+            default: "1.0"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [iocs]
+              properties:
+                iocs:
+                  type: string
+                  description: >
+                    JSON array (as text) of up to 5 objects, each {"type": "ip|domain|url|hash", "value": "<indicator>"}.
+                    Example: [{"type":"hash","value":"9ffd7347..."}]. Use [] when there is nothing to look up. Copy the
+                    array verbatim - do not reformat it or split it into separate calls.
+      responses:
+        "200":
+          description: Lookup results, one per indicator in request order.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  results:
+                    type: array
+                    items:
+                      type: object
+        "401":
+          description: Missing or invalid sig (trigger signature).
+        "429":
+          description: Logic App throttled.
