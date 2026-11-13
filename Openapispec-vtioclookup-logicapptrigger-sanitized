@@ -7,13 +7,13 @@ info:
     Logic App, called directly on its HTTP trigger callback URL. The trigger's SAS signature (sig) is the API key,
     injected by Security Copilot from the plugin manifest Authorization block, so callers need no Azure RBAC on the
     workflow. Returns a compact {"count":N,"results":[...]} object - one result per indicator in request order.
-  version: 1.0.0
+  version: 1.1.0
 
 servers:
-  # Sanitized: the real base URL is supplied at plugin setup through the manifest setting VirusTotalTriggerBaseUrl
+  # Sanitized: the real base URL is supplied at plugin setup through the manifest setting EndpointBaseUrl
   # (EndpointUrlSettingName), so it is never published in this spec.
   - url: https://<region-host>.logic.azure.com:443/workflows/<workflow-id>
-    description: Lookup_IP_Geolocation_DEV HTTP trigger - base URL overridden by the VirusTotalTriggerBaseUrl plugin setting
+    description: Lookup_IP_Geolocation_DEV HTTP trigger - base URL overridden by the EndpointBaseUrl plugin setting
 
 security:
   - TriggerSig: []
@@ -31,7 +31,8 @@ components:
 paths:
   /triggers/manual/paths/invoke:
     post:
-      operationId: LookupIocsVirusTotal
+      # v1.1.0: operationId made UNIQUE (was LookupIocsVirusTotal, the same name as the old LogicApp plugin's skill)
+      operationId: LookupIocsVirusTotalApi
       summary: Look up up to 5 IOCs in VirusTotal
       description: >
         Returns VirusTotal reputation for up to 5 indicators of type ip, domain, url or hash in ONE call. Each
@@ -39,7 +40,7 @@ paths:
         unsupported_type), malicious, suspicious, harmless, undetected and the type-specific fields (owner/ASN for
         IPs, registrar for domains, final URL for URLs, signer / signature_verified / popular_threat_label for file
         hashes). The three query parameters api-version, sp and sv are FIXED - always send exactly the listed
-        value. #ExamplePrompts LookupIocsVirusTotal iocs [{"type":"hash","value":"9ffd73473df17d443fa3bb11f0a2cb0ed30002bf4a60cbf8024ac3796c15a541"}]
+        value. #ExamplePrompts LookupIocsVirusTotalApi iocs [{"type":"hash","value":"9ffd73473df17d443fa3bb11f0a2cb0ed30002bf4a60cbf8024ac3796c15a541"}]
         #ExamplePrompts Look up these indicators in VirusTotal: [{"type":"ip","value":"20.50.88.238"},{"type":"domain","value":"example.com"}]
       parameters:
         - name: api-version
