@@ -7,7 +7,7 @@ info:
     Logic App, called directly on its HTTP trigger callback URL. The trigger's SAS signature (sig) is the API key,
     injected by Security Copilot from the plugin manifest Authorization block, so callers need no Azure RBAC on the
     workflow. Returns a compact {"count":N,"results":[...]} object - one result per indicator in request order.
-  version: 1.1.0
+  version: 1.2.0
 
 servers:
   # Sanitized: the real base URL is supplied at plugin setup through the manifest setting EndpointBaseUrl
@@ -89,6 +89,12 @@ paths:
               schema:
                 type: object
                 properties:
+                  run_id:
+                    type: string
+                    description: Logic App run ID of THIS lookup (matches Run history). Proof that the lookup actually ran.
+                  looked_up_at:
+                    type: string
+                    description: UTC time of the lookup.
                   count:
                     type: integer
                   results:
